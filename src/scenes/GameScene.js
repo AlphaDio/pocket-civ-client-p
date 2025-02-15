@@ -7,17 +7,17 @@ export default class GameScene extends Phaser.Scene {
     super('GameScene');
     this.gameState = null;
     this.gameId = null;
-    this.playerId = null;
+    this.playerUUID = null;
     console.log('GameScene: Initialized');
   }
 
   init(data) {
     this.gameId = data.gameId || localStorage.getItem('gameId');
-    this.playerId = data.playerId || localStorage.getItem('playerId');
-    console.log(`GameScene: Starting with gameId: ${this.gameId}, playerId: ${this.playerId}`);
+    this.playerUUID = data.playerUUID || localStorage.getItem('playerUUID');
+    console.log(`GameScene: Starting with gameId: ${this.gameId}, playerUUID: ${this.playerUUID}`);
 
-    if (!this.gameId || !this.playerId) {
-      console.warn('GameScene: Missing gameId or playerId, returning to menu');
+    if (!this.gameId || !this.playerUUID) {
+      console.warn('GameScene: Missing gameId or playerUUID, returning to menu');
       this.scene.start('MenuScene');
       return;
     }
@@ -67,7 +67,7 @@ export default class GameScene extends Phaser.Scene {
       console.log(`GameScene: Fetching state for game ${this.gameId}`);
       const response = await fetch(`${BACKEND_URL}/api/games/${this.gameId}/state`, {
         headers: {
-          'X-Player-Id': this.playerId
+          'X-Player-UUID': this.playerUUID
         }
       });
 
@@ -173,7 +173,7 @@ export default class GameScene extends Phaser.Scene {
       yOffset += 20;
       
       const claimText = this.add.text(0, yOffset,
-        `Claim: ${caseData.claimPoints.get(this.playerId) || 0}/${caseData.claimThreshold}`,
+        `Claim: ${caseData.claimPoints.get(this.playerUUID) || 0}/${caseData.claimThreshold}`,
         { fontSize: '12px', fill: '#fff' }
       ).setOrigin(0.5);
 

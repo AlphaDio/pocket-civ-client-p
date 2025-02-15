@@ -11,7 +11,7 @@ export default class MenuScene extends Phaser.Scene {
   init() {
     console.log('MenuScene: Initializing scene');
     this.gameId = null;
-    this.playerId = null;
+    this.playerUUID = null;
     this.gamesList = [];
     this.gamesListContainer = null;
   }
@@ -116,8 +116,8 @@ export default class MenuScene extends Phaser.Scene {
       return;
     }
 
-    // Get current player's ID from localStorage
-    const currentPlayerId = localStorage.getItem('playerId');
+    // Get current player's UUID from localStorage
+    const currentPlayerUUID = localStorage.getItem('playerUUID') || this.playerUUID;
 
     // Create game entries
     games.forEach((game, index) => {
@@ -135,38 +135,38 @@ export default class MenuScene extends Phaser.Scene {
 
       const gameElements = [gameText];
 
-      // Check if current player is already in the game
-      const isPlayerInGame = game.players.some(player => player.id === currentPlayerId);
-
-      // Only show join button if player is not already in the game
-      if (!isPlayerInGame) {
-        const joinButton = this.add.text(100, yOffset, 'Join', {
+      // Show start button for all games in waiting status
+      if (game.status === 'waiting') {
+        const startButton = this.add.text(100, yOffset, 'Start Game', {
           fontSize: '20px',
-          fill: '#fff',
+          fill: '#00ff00',
           backgroundColor: '#444',
           padding: { x: 10, y: 5 }
         })
         .setInteractive()
-        .on('pointerdown', () => this.handleJoinGame(game.id))
-        .on('pointerover', () => joinButton.setStyle({ fill: '#ff0' }))
-        .on('pointerout', () => joinButton.setStyle({ fill: '#fff' }));
+        .on('pointerdown', () => this.handleStartGame(game.id))
+        .on('pointerover', () => startButton.setStyle({ fill: '#88ff88' }))
+        .on('pointerout', () => startButton.setStyle({ fill: '#00ff00' }));
 
-        gameElements.push(joinButton);
+        gameElements.push(startButton);
       }
 
-      // Delete button
-      const deleteButton = this.add.text(200, yOffset, 'Delete', {
-        fontSize: '20px',
-        fill: '#ff0000',
-        backgroundColor: '#444',
-        padding: { x: 10, y: 5 }
-      })
-      .setInteractive()
-      .on('pointerdown', () => this.handleDeleteGame(game.id))
-      .on('pointerover', () => deleteButton.setStyle({ fill: '#ff8888' }))
-      .on('pointerout', () => deleteButton.setStyle({ fill: '#ff0000' }));
+      // Show delete button only for the creator
+      if (game.creator === currentPlayerUUID) {
+        const deleteButton = this.add.text(200, yOffset, 'Delete', {
+          fontSize: '20px',
+          fill: '#ff0000',
+          backgroundColor: '#444',
+          padding: { x: 10, y: 5 }
+        })
+        .setInteractive()
+        .on('pointerdown', () => this.handleDeleteGame(game.id))
+        .on('pointerover', () => deleteButton.setStyle({ fill: '#ff8888' }))
+        .on('pointerout', () => deleteButton.setStyle({ fill: '#ff0000' }));
 
-      gameElements.push(deleteButton);
+        gameElements.push(deleteButton);
+      }
+
       this.gamesListContainer.add(gameElements);
     });
   }
@@ -187,18 +187,22 @@ export default class MenuScene extends Phaser.Scene {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ playerName })
+        body: JSON.stringify({ 
+          playerName,
+          playerUUID: this.playerUUID // Include UUID if we have one
+        })
       });
 
       const data = await response.json();
       if (response.ok) {
-        console.log(`MenuScene: Game created successfully - GameId: ${data.gameId}, PlayerId: ${data.playerId}`);
+        console.log(`MenuScene: Game created successfully - GameId: ${data.gameId}`);
         this.gameId = data.gameId;
-        this.playerId = data.playerId;
         
-        console.log('MenuScene: Storing game and player IDs in localStorage');
-        localStorage.setItem('gameId', this.gameId);
-        localStorage.setItem('playerId', this.playerId);
+        // Store playerUUID in memory only
+        if (data.playerUUID) {
+          console.log('MenuScene: Received new playerUUID:', data.playerUUID);
+          this.playerUUID = data.playerUUID;
+        }
         
         // Refresh games list and show success message
         this.fetchGames();
@@ -213,51 +217,54 @@ export default class MenuScene extends Phaser.Scene {
     }
   }
 
-  async handleJoinGame(gameId) {
+  async handleStartGame(gameId) {
+    console.log(`MenuScene: Attempting to start game ${gameId}`);
     const playerName = this.nameInput.node.value;
     if (!playerName) {
-      console.warn('MenuScene: Join game attempted without player name');
+      console.warn('MenuScene: Start game attempted without player name');
       this.showError('Please enter your name');
       return;
     }
 
-    console.log(`MenuScene: Attempting to join game ${gameId} as ${playerName}`);
     try {
-      console.log(`MenuScene: Sending join game request to ${BACKEND_URL}`);
-      const response = await fetch(`${BACKEND_URL}/api/games/${gameId}/join`, {
+      console.log(`MenuScene: Sending ready game request to ${BACKEND_URL}`);
+      const response = await fetch(`${BACKEND_URL}/api/games/${gameId}/ready`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ playerName })
+        body: JSON.stringify({ 
+          playerName,
+          playerUUID: this.playerUUID
+        })
       });
 
       const data = await response.json();
       if (response.ok) {
-        console.log(`MenuScene: Successfully joined game - GameId: ${data.gameId}, PlayerId: ${data.playerId}`);
-        this.gameId = data.gameId;
-        this.playerId = data.playerId;
+        console.log('MenuScene: Game ready successfully');
+        this.gameId = gameId;
         
-        console.log('MenuScene: Storing game and player IDs in localStorage');
-        localStorage.setItem('gameId', this.gameId);
-        localStorage.setItem('playerId', this.playerId);
+        // Store playerUUID in memory only
+        if (data.playerUUID) {
+          console.log('MenuScene: Received new playerUUID:', data.playerUUID);
+          this.playerUUID = data.playerUUID;
+        }
         
         this.startGame();
       } else {
-        console.error('MenuScene: Server returned error on game join:', data.error);
-        this.showError(data.error);
+        console.error('MenuScene: Server returned error on game ready:', data.error);
+        this.showError(data.error || 'Failed to ready game');
       }
     } catch (error) {
-      console.error('MenuScene: Failed to join game:', error);
-      this.showError('Failed to join game');
+      console.error('MenuScene: Failed to start game:', error);
+      this.showError('Failed to start game');
     }
   }
 
   async handleDeleteGame(gameId) {
     console.log(`MenuScene: Attempting to delete game ${gameId}`);
     try {
-      const playerId = localStorage.getItem('playerId');
-      if (!playerId) {
+      if (!this.playerUUID) {
         this.showError('You must be a player to delete a game');
         return;
       }
@@ -267,7 +274,7 @@ export default class MenuScene extends Phaser.Scene {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          'x-player-id': playerId
+          'X-Player-UUID': this.playerUUID
         }
       });
 
@@ -318,7 +325,7 @@ export default class MenuScene extends Phaser.Scene {
     console.log('MenuScene: Starting game scene');
     this.scene.start('GameScene', {
       gameId: this.gameId,
-      playerId: this.playerId
+      playerUUID: this.playerUUID
     });
   }
 } 
