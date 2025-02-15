@@ -1,0 +1,7 @@
+node_modules/
+
+# Ignore all files in the context directory
+context/
+
+# Ignore all files in the data directory
+data/
