@@ -1,18 +1,28 @@
 {
   "name": "pocket-civ-client-p",
+  "private": true,
   "version": "1.0.0",
   "author": "AlphaDio",
-  "main": "server.js",
-  "license": "MIT",
+  "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "yarn nodemon server.js"
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "phaser": "^3.88.2"
+    "phaser": "^3.88.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.3"
+    "@types/react": "^18.2.55",
+    "@types/react-dom": "^18.2.19",
+    "@vitejs/plugin-react": "^4.2.1",
+    "eslint": "^8.56.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "vite": "^5.1.0"
   }
 }
