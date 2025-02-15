@@ -57,8 +57,62 @@ export default class GameScene extends Phaser.Scene {
       fill: '#fff'
     });
 
+    // Start Game button (initially hidden)
+    this.startGameButton = this.add.text(400, 150, 'Start Game', {
+      fontSize: '24px',
+      fill: '#00ff00',
+      backgroundColor: '#444',
+      padding: { x: 20, y: 10 }
+    })
+    .setOrigin(0.5)
+    .setInteractive()
+    .on('pointerdown', () => this.handleStartGame())
+    .on('pointerover', () => this.startGameButton.setStyle({ fill: '#88ff88' }))
+    .on('pointerout', () => this.startGameButton.setStyle({ fill: '#00ff00' }));
+    this.startGameButton.visible = false;
+
     // Create a container for cases
     this.casesContainer = this.add.container(400, 300);
+    
+    // Add scrolling functionality
+    this.input.on('pointerdown', this.startDrag, this);
+    this.input.on('pointermove', this.doDrag, this);
+    this.input.on('pointerup', this.stopDrag, this);
+    this.input.on('pointerout', this.stopDrag, this);
+
+    // Add scroll state
+    this.isDragging = false;
+    this.lastPointerX = 0;
+  }
+
+  startDrag(pointer) {
+    this.isDragging = true;
+    this.lastPointerX = pointer.x;
+  }
+
+  doDrag(pointer) {
+    if (!this.isDragging) return;
+
+    const deltaX = pointer.x - this.lastPointerX;
+    this.lastPointerX = pointer.x;
+
+    // Calculate new container position
+    const newX = this.casesContainer.x + deltaX;
+    
+    // Get the total width of all cards
+    const totalCardsWidth = this.gameState ? 
+      (this.gameState.currentCases.length * (150 + 20)) : 0;
+    
+    // Set bounds for scrolling
+    const minX = this.sys.game.config.width - totalCardsWidth;
+    const maxX = this.sys.game.config.width - 200; // Leave some space on the right
+
+    // Apply bounded position
+    this.casesContainer.x = Math.max(minX, Math.min(maxX, newX));
+  }
+
+  stopDrag() {
+    this.isDragging = false;
   }
 
   async pollGameState() {
@@ -80,14 +134,38 @@ export default class GameScene extends Phaser.Scene {
       console.log('GameScene: Received game state:', gameState);
       this.updateGameState(gameState);
 
-      console.log('GameScene: Scheduling next poll in 2 seconds');
-      this.time.delayedCall(2000, () => this.pollGameState());
+      console.log('GameScene: Scheduling next poll in 5 seconds');
+      this.time.delayedCall(5000, () => this.pollGameState());
     } catch (error) {
       console.error('GameScene: Error polling game state:', error);
       this.statusText.setText('Error: Failed to fetch game state');
       
-      console.log('GameScene: Retrying poll in 5 seconds due to error');
-      this.time.delayedCall(5000, () => this.pollGameState());
+      console.log('GameScene: Retrying poll in 10 seconds due to error');
+      this.time.delayedCall(10000, () => this.pollGameState());
+    }
+  }
+
+  async handleStartGame() {
+    console.log('GameScene: Attempting to start game');
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/games/${this.gameId}/start`, {
+        method: 'POST',
+        headers: {
+          'X-Player-UUID': this.playerUUID
+        }
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        console.error('GameScene: Failed to start game:', data.error);
+        // You might want to show an error message to the user here
+        return;
+      }
+
+      console.log('GameScene: Game started successfully');
+      // The next poll will update the game state
+    } catch (error) {
+      console.error('GameScene: Error starting game:', error);
     }
   }
 
@@ -97,6 +175,12 @@ export default class GameScene extends Phaser.Scene {
 
     // Update status text
     this.statusText.setText(`Game Status: ${gameState.status}`);
+
+    // Show/hide start game button based on game status and player being creator
+    this.startGameButton.visible = (
+      gameState.status === 'setup' && 
+      gameState.player.uuid === gameState.creator
+    );
 
     // Update player info
     const player = gameState.player;
@@ -110,8 +194,14 @@ export default class GameScene extends Phaser.Scene {
       `Era: ${gameState.currentEra}\nRound: ${gameState.currentRound}`
     );
 
-    console.log('GameScene: Updating cases display');
-    this.updateCasesDisplay();
+    // Only show cases if game is in progress
+    if (gameState.status === 'in_progress') {
+      console.log('GameScene: Updating cases display');
+      this.updateCasesDisplay();
+    } else {
+      // Clear cases display if not in progress
+      this.casesContainer.removeAll(true);
+    }
   }
 
   updateCasesDisplay() {
@@ -119,20 +209,18 @@ export default class GameScene extends Phaser.Scene {
     // Clear existing cases
     this.casesContainer.removeAll(true);
 
-    // Calculate grid layout
-    const gridCols = 4;
-    const gridRows = 3;
+    // Reset container position when updating display
+    this.casesContainer.x = 400;
+
+    // Single row layout
     const cardWidth = 150;
-    const cardHeight = 200;
     const padding = 20;
 
     // Create cards for each case
     this.gameState.currentCases.forEach((caseData, index) => {
-      const row = Math.floor(index / gridCols);
-      const col = index % gridCols;
-
-      const x = (col - gridCols/2) * (cardWidth + padding);
-      const y = (row - gridRows/2) * (cardHeight + padding);
+      // Layout cards from left to right
+      const x = index * (cardWidth + padding);
+      const y = 0;
 
       // Create case card
       const card = this.createCaseCard(caseData, x, y);

@@ -135,21 +135,20 @@ export default class MenuScene extends Phaser.Scene {
 
       const gameElements = [gameText];
 
-      // Show start button for all games in waiting status
-      if (game.status === 'waiting') {
-        const startButton = this.add.text(100, yOffset, 'Start Game', {
-          fontSize: '20px',
-          fill: '#00ff00',
-          backgroundColor: '#444',
-          padding: { x: 10, y: 5 }
-        })
-        .setInteractive()
-        .on('pointerdown', () => this.handleStartGame(game.id))
-        .on('pointerover', () => startButton.setStyle({ fill: '#88ff88' }))
-        .on('pointerout', () => startButton.setStyle({ fill: '#00ff00' }));
+      // Show Join/Continue button for all games
+      const buttonText = game.players.some(p => p.id === currentPlayerUUID) ? 'Continue' : 'Join Game';
+      const joinButton = this.add.text(100, yOffset, buttonText, {
+        fontSize: '20px',
+        fill: '#00ff00',
+        backgroundColor: '#444',
+        padding: { x: 10, y: 5 }
+      })
+      .setInteractive()
+      .on('pointerdown', () => this.handleJoinGame(game.id))
+      .on('pointerover', () => joinButton.setStyle({ fill: '#88ff88' }))
+      .on('pointerout', () => joinButton.setStyle({ fill: '#00ff00' }));
 
-        gameElements.push(startButton);
-      }
+      gameElements.push(joinButton);
 
       // Show delete button only for the creator
       if (game.creator === currentPlayerUUID) {
@@ -217,18 +216,18 @@ export default class MenuScene extends Phaser.Scene {
     }
   }
 
-  async handleStartGame(gameId) {
-    console.log(`MenuScene: Attempting to start game ${gameId}`);
+  async handleJoinGame(gameId) {
+    console.log(`MenuScene: Attempting to join game ${gameId}`);
     const playerName = this.nameInput.node.value;
     if (!playerName) {
-      console.warn('MenuScene: Start game attempted without player name');
+      console.warn('MenuScene: Join game attempted without player name');
       this.showError('Please enter your name');
       return;
     }
 
     try {
-      console.log(`MenuScene: Sending ready game request to ${BACKEND_URL}`);
-      const response = await fetch(`${BACKEND_URL}/api/games/${gameId}/ready`, {
+      console.log(`MenuScene: Sending join game request to ${BACKEND_URL}`);
+      const response = await fetch(`${BACKEND_URL}/api/games/${gameId}/join`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -241,23 +240,23 @@ export default class MenuScene extends Phaser.Scene {
 
       const data = await response.json();
       if (response.ok) {
-        console.log('MenuScene: Game ready successfully');
+        console.log('MenuScene: Joined game successfully');
         this.gameId = gameId;
         
         // Store playerUUID in memory only
         if (data.playerUUID) {
-          console.log('MenuScene: Received new playerUUID:', data.playerUUID);
+          console.log('MenuScene: Received playerUUID:', data.playerUUID);
           this.playerUUID = data.playerUUID;
         }
         
         this.startGame();
       } else {
-        console.error('MenuScene: Server returned error on game ready:', data.error);
-        this.showError(data.error || 'Failed to ready game');
+        console.error('MenuScene: Server returned error on game join:', data.error);
+        this.showError(data.error || 'Failed to join game');
       }
     } catch (error) {
-      console.error('MenuScene: Failed to start game:', error);
-      this.showError('Failed to start game');
+      console.error('MenuScene: Failed to join game:', error);
+      this.showError('Failed to join game');
     }
   }
 
