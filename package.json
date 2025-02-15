@@ -1,0 +1,7 @@
+{
+  "name": "pocket-civ-client-p",
+  "version": "1.0.0",
+  "author": "AlphaDio",
+  "main": "index.js",
+  "license": "MIT"
+}
