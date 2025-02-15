@@ -5,3 +5,7 @@ context/
 
 # Ignore all files in the data directory
 data/
+
+# Ignore all environment variables
+.env
+*.env
