@@ -127,7 +127,7 @@ export default class GameScene extends Phaser.Scene {
     this.lastPointerX = 0;
 
     // Create leaders container at bottom left
-    this.leadersContainer = this.add.container(10, this.sys.game.config.height - 120);
+    this.leadersContainer = this.add.container(10, this.sys.game.config.height - 140);
     const leadersBg = this.add.rectangle(0, 0, 300, 100, 0x222222, 0.5);
     this.leadersContainer.add(leadersBg);
     this.leadersBg = leadersBg;
@@ -465,7 +465,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Update leaders text with both placed and pending leaders
     const currentLeaders = caseData.placedLeaders || [];
-    const pendingPlacement = this.pendingLeaderPlacements.find(p => p.position === index);
+    const pendingPlacement = this.pendingLeaderPlacements.find(p => p.caseId === caseData.caseId);
     
     if (currentLeaders.length > 0 || pendingPlacement) {
       const leaderStrings = [
@@ -554,18 +554,16 @@ export default class GameScene extends Phaser.Scene {
         // Add to pending placements instead of sending to backend
         const placement = {
           leaderId: leader.leaderId,
-          caseId: caseData.id,
-          useUnique: this.selectedLeaderUnique,
-          position: index
+          caseId: caseData.caseId,
+          useUnique: this.selectedLeaderUnique
         };
         
         // Check if leader is already placed
         const existingPlacement = this.pendingLeaderPlacements.find(p => p.leaderId === leader.leaderId);
         if (existingPlacement) {
           // Update existing placement
-          existingPlacement.caseId = caseData.id;
+          existingPlacement.caseId = caseData.caseId;
           existingPlacement.useUnique = this.selectedLeaderUnique;
-          existingPlacement.position = index;
         } else {
           // Add new placement
           this.pendingLeaderPlacements.push(placement);
@@ -661,12 +659,15 @@ export default class GameScene extends Phaser.Scene {
           leader.knowledgeTypes.map(k => `${k.type.substring(0, 3)}: ${k.amount}`).join(' | ')
         );
         
-        // Update unique ability text and add position if placed
-        let uniqueText = `${leader.uniqueAbility.name} (${leader.uniqueAbility.usedThisEra ? 'Used' : 'Available'})`;
+        // Update unique ability text and add case info if placed
+        let uniqueAbilityText = `${leader.uniqueAbility.name} (${leader.uniqueAbility.usedThisEra ? 'Used' : 'Available'})`;
         if (pendingPlacement) {
-          uniqueText += ` | Position: ${pendingPlacement.position}`;
+          const targetCase = this.gameState.currentCases.find(c => c.caseId === pendingPlacement.caseId);
+          if (targetCase) {
+            uniqueAbilityText += ` | Case: ${targetCase.name}`;
+          }
         }
-        display.uniqueText.setText(uniqueText);
+        display.uniqueText.setText(uniqueAbilityText);
         display.uniqueText.setStyle({ 
           fill: leader.uniqueAbility.usedThisEra ? '#888' : '#00ff00' 
         });
@@ -709,9 +710,16 @@ export default class GameScene extends Phaser.Scene {
         display.knowledgeText.setText(
           leader.knowledgeTypes.map(k => `${k.type.substring(0, 3)}: ${k.amount}`).join(' | ')
         );
-        display.uniqueText.setText(
-          `${leader.uniqueAbility.name} (${leader.uniqueAbility.usedThisEra ? 'Used' : 'Available'})`
-        );
+        
+        // Set initial unique ability text with case info if placed
+        let initialUniqueText = `${leader.uniqueAbility.name} (${leader.uniqueAbility.usedThisEra ? 'Used' : 'Available'})`;
+        if (pendingPlacement) {
+          const targetCase = this.gameState.currentCases.find(c => c.caseId === pendingPlacement.caseId);
+          if (targetCase) {
+            initialUniqueText += ` | Case: ${targetCase.name}`;
+          }
+        }
+        display.uniqueText.setText(initialUniqueText);
         display.uniqueText.setStyle({ 
           fill: leader.uniqueAbility.usedThisEra ? '#888' : '#00ff00' 
         });
