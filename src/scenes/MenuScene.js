@@ -150,8 +150,24 @@ export default class MenuScene extends Phaser.Scene {
 
       gameElements.push(joinButton);
 
-      // Show delete button only for the creator
-      if (game.creator === currentPlayerUUID) {
+      // Debug log for game status
+      console.log(`MenuScene: Game ${game.id} status:`, game.status);
+
+      // Show delete button for waiting games, close button for in progress games
+      if (game.status.toLowerCase() === 'in_progress' || game.status.toLowerCase() === 'in progress') {
+        const closeButton = this.add.text(200, yOffset, 'Close', {
+          fontSize: '20px',
+          fill: '#ff0000',
+          backgroundColor: '#444',
+          padding: { x: 10, y: 5 }
+        })
+        .setInteractive()
+        .on('pointerdown', () => this.handleCloseGame(game.id))
+        .on('pointerover', () => closeButton.setStyle({ fill: '#ff8888' }))
+        .on('pointerout', () => closeButton.setStyle({ fill: '#ff0000' }));
+
+        gameElements.push(closeButton);
+      } else if (game.status.toLowerCase() === 'waiting') {
         const deleteButton = this.add.text(200, yOffset, 'Delete', {
           fontSize: '20px',
           fill: '#ff0000',
@@ -263,17 +279,11 @@ export default class MenuScene extends Phaser.Scene {
   async handleDeleteGame(gameId) {
     console.log(`MenuScene: Attempting to delete game ${gameId}`);
     try {
-      if (!this.playerUUID) {
-        this.showError('You must be a player to delete a game');
-        return;
-      }
-
       console.log(`MenuScene: Sending delete game request to ${BACKEND_URL}`);
       const response = await fetch(`${BACKEND_URL}/api/games/${gameId}`, {
         method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json',
-          'X-Player-UUID': this.playerUUID
+          'Content-Type': 'application/json'
         }
       });
 
@@ -289,6 +299,32 @@ export default class MenuScene extends Phaser.Scene {
     } catch (error) {
       console.error('MenuScene: Failed to delete game:', error);
       this.showError('Failed to delete game');
+    }
+  }
+
+  async handleCloseGame(gameId) {
+    console.log(`MenuScene: Attempting to close game ${gameId}`);
+    try {
+      console.log(`MenuScene: Sending close game request to ${BACKEND_URL}`);
+      const response = await fetch(`${BACKEND_URL}/api/games/${gameId}/close`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        console.log('MenuScene: Game closed successfully');
+        this.showSuccess('Game closed successfully');
+        this.fetchGames(); // Refresh the games list
+      } else {
+        const data = await response.json();
+        console.error('MenuScene: Server returned error on game closure:', data.error);
+        this.showError(data.error || 'Failed to close game');
+      }
+    } catch (error) {
+      console.error('MenuScene: Failed to close game:', error);
+      this.showError('Failed to close game');
     }
   }
 
