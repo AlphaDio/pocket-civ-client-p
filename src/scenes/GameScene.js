@@ -319,8 +319,8 @@ export default class GameScene extends Phaser.Scene {
       `M:${player.resources.might}\n` +
       `E:${player.resources.education}\n` +
       `G:${player.resources.gold}\n` +
-      `F:${player.resources.faith}\n` +
-      `F:${player.resources.food}\n` +
+      `Fa:${player.resources.faith}\n` +
+      `Fo:${player.resources.food}\n` +
       `I:${player.resources.influence}`
     );
 
@@ -373,8 +373,8 @@ export default class GameScene extends Phaser.Scene {
         `M: ${player.resources.might}\n` +
         `E: ${player.resources.education}\n` +
         `G: ${player.resources.gold}\n` +
-        `F: ${player.resources.faith}\n` +
-        `F: ${player.resources.food}\n` +
+        `Fa: ${player.resources.faith}\n` +
+        `Fo: ${player.resources.food}\n` +
         `I: ${player.resources.influence}`;
 
       let display;
