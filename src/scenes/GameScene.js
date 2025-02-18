@@ -13,7 +13,7 @@ export default class GameScene extends Phaser.Scene {
     this.playerPool = new Map(); // Pool to store other player display objects
     this.selectedLeader = null; // Track currently selected leader
     this.selectedLeaderUnique = false; // Track if unique ability is selected
-    this.pendingLeaderPlacements = []; // Track leader placements for this turn
+    this.pendingPlacements = []; // Track local leader placements before commit
     console.log('GameScene: Initialized');
   }
 
@@ -71,19 +71,43 @@ export default class GameScene extends Phaser.Scene {
       fill: '#fff'
     });
 
-    // Commit Turn button
-    this.commitTurnButton = this.add.text(400, 250, 'Commit Turn', {
-      fontSize: '24px',
-      fill: '#00ff00',
-      backgroundColor: '#444',
-      padding: { x: 20, y: 10 }
-    })
-    .setOrigin(0.5)
+    // Commit Turn button - move to bottom right
+    this.commitTurnButton = this.add.text(
+        this.sys.game.config.width - 20,
+        this.sys.game.config.height - 60,
+        'Commit Turn',
+        {
+            fontSize: '24px',
+            fill: '#00ff00',
+            backgroundColor: '#444',
+            padding: { x: 20, y: 10 }
+        }
+    )
+    .setOrigin(1, 0.5)  // Align to right side
     .setInteractive()
     .on('pointerdown', () => this.handleCommitTurn())
     .on('pointerover', () => this.commitTurnButton.setStyle({ fill: '#88ff88' }))
     .on('pointerout', () => this.commitTurnButton.setStyle({ fill: '#00ff00' }));
     this.commitTurnButton.visible = false;
+
+    // Force Process Turn button - move to bottom right, above Commit Turn
+    this.forceProcessButton = this.add.text(
+        this.sys.game.config.width - 20,
+        this.sys.game.config.height - 110,  // Position above Commit Turn
+        'Force Process Turn',
+        {
+            fontSize: '24px',
+            fill: '#ff0000',
+            backgroundColor: '#444',
+            padding: { x: 20, y: 10 }
+        }
+    )
+    .setOrigin(1, 0.5)  // Align to right side
+    .setInteractive()
+    .on('pointerdown', () => this.handleForceProcessTurn())
+    .on('pointerover', () => this.forceProcessButton.setStyle({ fill: '#ff8888' }))
+    .on('pointerout', () => this.forceProcessButton.setStyle({ fill: '#ff0000' }));
+    this.forceProcessButton.visible = false;
 
     // Start Game button (initially hidden)
     this.startGameButton = this.add.text(400, 150, 'Start Game', {
@@ -98,20 +122,6 @@ export default class GameScene extends Phaser.Scene {
     .on('pointerover', () => this.startGameButton.setStyle({ fill: '#88ff88' }))
     .on('pointerout', () => this.startGameButton.setStyle({ fill: '#00ff00' }));
     this.startGameButton.visible = false;
-
-    // Add Force Process Turn button (initially hidden)
-    this.forceProcessButton = this.add.text(400, 200, 'Force Process Turn', {
-      fontSize: '24px',
-      fill: '#333300',
-      backgroundColor: '#444',
-      padding: { x: 20, y: 10 }
-    })
-    .setOrigin(0.5)
-    .setInteractive()
-    .on('pointerdown', () => this.handleForceProcessTurn())
-    .on('pointerover', () => this.forceProcessButton.setStyle({ fill: '#ff8888' }))
-    .on('pointerout', () => this.forceProcessButton.setStyle({ fill: '#ff0000' }));
-    this.forceProcessButton.visible = false;
 
     // Create a container for cases
     this.casesContainer = this.add.container(400, 300);
@@ -233,15 +243,54 @@ export default class GameScene extends Phaser.Scene {
         return;
       }
 
+      // Clear all turn actions after successful processing
+      this.pendingPlacements = [];
+      this.commitTurnButton.visible = false;
+      
+      // Clear the game state turn actions
+      this.gameState = {
+        ...this.gameState,
+        player: {
+          ...this.gameState.player,
+          turnActions: {
+            leaderPlacements: [],
+            upgrades: []
+          }
+        }
+      };
+
+      // Update the display to reflect cleared state
+      this.updateCasesDisplay();
+
       console.log('GameScene: Turn force processed successfully');
-      // The next poll will update the game state
+      
+      // Trigger an immediate poll to get the updated game state
+      this.pollGameState();
     } catch (error) {
       console.error('GameScene: Error force processing turn:', error);
     }
   }
 
   updateGameState(gameState) {
-    this.gameState = gameState;
+    // Check if round has changed (turn has been processed)
+    if (this.gameState && gameState.currentRound !== this.gameState.currentRound) {
+      console.log('GameScene: Round changed, clearing all turn actions');
+      this.pendingPlacements = [];
+      this.commitTurnButton.visible = false;
+    }
+
+    this.gameState = {
+      ...gameState,
+      player: {
+        ...gameState.player,
+        turnActions: {
+          ...gameState.player.turnActions,
+          // Local pending placements take precedence over server state
+          leaderPlacements: this.pendingPlacements.length > 0 ? [] : (gameState.player.turnActions?.leaderPlacements || [])
+        }
+      }
+    };
+    
     console.log(`GameScene: Updating game state - Era: ${gameState.currentEra}, Round: ${gameState.currentRound}`);
 
     // Update status text
@@ -267,11 +316,11 @@ export default class GameScene extends Phaser.Scene {
     console.log(`GameScene: Updating player info - Name: ${player.name}, Era Points: ${player.eraPoints}`);
     this.playerInfo.setText(
       `${player.name} (${player.eraPoints} EP) | ` +
-      `M:${player.resources.might} | ` +
-      `E:${player.resources.education} | ` +
-      `G:${player.resources.gold} | ` +
-      `F:${player.resources.faith} | ` +
-      `F:${player.resources.food} | ` +
+      `M:${player.resources.might}\n` +
+      `E:${player.resources.education}\n` +
+      `G:${player.resources.gold}\n` +
+      `F:${player.resources.faith}\n` +
+      `F:${player.resources.food}\n` +
       `I:${player.resources.influence}`
     );
 
@@ -292,6 +341,9 @@ export default class GameScene extends Phaser.Scene {
       this.casesContainer.removeAll(true);
       this.casePool.clear();
     }
+
+    // Show commit button if we have any pending placements
+    this.commitTurnButton.visible = this.pendingPlacements.length > 0;
   }
 
   updateOtherPlayersDisplay(otherPlayers) {
@@ -441,33 +493,52 @@ export default class GameScene extends Phaser.Scene {
     nameText.setText(caseData.name);
     typeText.setText(caseData.type);
 
-    // Remove any existing exploration/claim texts
+    // Remove any existing exploration/claim/owner texts
     otherElements.forEach(element => element.destroy());
 
-    // Add or update exploration/claim info if revealed
-    if (caseData.isRevealed) {
-      let yOffset = -30;
-      
-      const explorationText = this.add.text(0, yOffset,
-        `Exploration: ${caseData.explorationPoints}/${caseData.explorationThreshold}`,
-        { fontSize: '12px', fill: '#fff' }
-      ).setOrigin(0.5);
-      
-      yOffset += 20;
-      
-      const claimText = this.add.text(0, yOffset,
-        `Claim: ${caseData.claimPoints.get(this.playerUUID) || 0}/${caseData.claimThreshold}`,
-        { fontSize: '12px', fill: '#fff' }
-      ).setOrigin(0.5);
+    let yOffset = -30;
 
-      container.add([explorationText, claimText]);
+    if (caseData.owner) {
+        // Show owner if case is claimed
+        const ownerText = this.add.text(0, yOffset,
+            `Claimed by: ${caseData.owner.slice(-3)}`,
+            { fontSize: '12px', fill: '#00ff00' }
+        ).setOrigin(0.5);
+        
+        container.add([ownerText]);
+    } else if (!caseData.isRevealed) {
+        // Show exploration points for unrevealed cases
+        const explorationPointsText = Object.entries(caseData.explorationPoints || {})
+            .map(([uuid, points]) => `${points}[${uuid.slice(-3)}]`)
+            .join(', ');
+        
+        const explorationText = this.add.text(0, yOffset,
+            `Exploration: ${explorationPointsText || '0'}/${caseData.explorationThreshold}`,
+            { fontSize: '12px', fill: '#fff' }
+        ).setOrigin(0.5);
+        
+        container.add([explorationText]);
+    } else {
+        // Show claim points for revealed but unclaimed cases
+        const claimPoints = caseData.claimPoints || {};
+        const claimPointsValue = typeof claimPoints.get === 'function' 
+            ? claimPoints.get(this.playerUUID) 
+            : (claimPoints[this.playerUUID] || 0);
+        
+        const claimText = this.add.text(0, yOffset,
+            `Claim: ${claimPointsValue}/${caseData.claimThreshold}`,
+            { fontSize: '12px', fill: '#fff' }
+        ).setOrigin(0.5);
+
+        container.add([claimText]);
     }
 
     // Update leaders text with both placed and pending leaders
     const currentLeaders = caseData.placedLeaders || [];
-    const pendingPlacement = this.pendingLeaderPlacements.find(p => p.caseId === caseData.caseId);
+    const serverPendingPlacement = this.gameState.player.turnActions.leaderPlacements.find(p => p.caseId === caseData.caseId);
+    const localPendingPlacement = this.pendingPlacements.find(p => p.caseId === caseData.caseId);
     
-    if (currentLeaders.length > 0 || pendingPlacement) {
+    if (currentLeaders.length > 0 || serverPendingPlacement || localPendingPlacement) {
       const leaderStrings = [
         ...currentLeaders.map(leader => {
           const shortUUID = leader.playerUUID.substring(0, 3);
@@ -476,12 +547,23 @@ export default class GameScene extends Phaser.Scene {
         })
       ];
 
-      if (pendingPlacement) {
-        const leader = this.gameState.player.leaders.find(l => l.leaderId === pendingPlacement.leaderId);
+      // Add server-side pending placements
+      if (serverPendingPlacement) {
+        const leader = this.gameState.player.leaders.find(l => l.leaderId === serverPendingPlacement.leaderId);
         if (leader) {
           const shortUUID = this.playerUUID.substring(0, 3);
-          const uniqueMarker = pendingPlacement.useUnique ? '*' : '';
+          const uniqueMarker = serverPendingPlacement.useUnique ? '*' : '';
           leaderStrings.push(`${leader.name}${uniqueMarker}[${shortUUID}] (Pending)`);
+        }
+      }
+
+      // Add local pending placements
+      if (localPendingPlacement) {
+        const leader = this.gameState.player.leaders.find(l => l.leaderId === localPendingPlacement.leaderId);
+        if (leader) {
+          const shortUUID = this.playerUUID.substring(0, 3);
+          const uniqueMarker = localPendingPlacement.useUnique ? '*' : '';
+          leaderStrings.push(`${leader.name}${uniqueMarker}[${shortUUID}] (Pending*)`);
         }
       }
 
@@ -526,51 +608,64 @@ export default class GameScene extends Phaser.Scene {
 
     container.add([bg, nameText, typeText, leadersText]);
 
-    // Add exploration/claim info if revealed
-    if (caseData.isRevealed) {
-      let yOffset = -30;
-      const explorationText = this.add.text(0, yOffset,
-        `Exploration: ${caseData.explorationPoints}/${caseData.explorationThreshold}`,
-        { fontSize: '12px', fill: '#fff' }
-      ).setOrigin(0.5);
-      
-      yOffset += 20;
-      
-      const claimText = this.add.text(0, yOffset,
-        `Claim: ${caseData.claimPoints.get(this.playerUUID) || 0}/${caseData.claimThreshold}`,
-        { fontSize: '12px', fill: '#fff' }
-      ).setOrigin(0.5);
+    let yOffset = -30;
 
-      container.add([explorationText, claimText]);
+    if (caseData.owner) {
+        // Show owner if case is claimed
+        const ownerText = this.add.text(0, yOffset,
+            `Claimed by: ${caseData.owner.slice(-3)}`,
+            { fontSize: '12px', fill: '#00ff00' }
+        ).setOrigin(0.5);
+        
+        container.add([ownerText]);
+    } else if (!caseData.isRevealed) {
+        // Show exploration points for unrevealed cases
+        const explorationPointsText = Object.entries(caseData.explorationPoints || {})
+            .map(([uuid, points]) => `${points}[${uuid.slice(-3)}]`)
+            .join(', ');
+        
+        const explorationText = this.add.text(0, yOffset,
+            `Exploration: ${explorationPointsText || '0'}/${caseData.explorationThreshold}`,
+            { fontSize: '12px', fill: '#fff' }
+        ).setOrigin(0.5);
+        
+        container.add([explorationText]);
+    } else {
+        // Show claim points for revealed but unclaimed cases
+        const claimPoints = caseData.claimPoints || {};
+        const claimPointsValue = typeof claimPoints.get === 'function' 
+            ? claimPoints.get(this.playerUUID) 
+            : (claimPoints[this.playerUUID] || 0);
+        
+        const claimText = this.add.text(0, yOffset,
+            `Claim: ${claimPointsValue}/${caseData.claimThreshold}`,
+            { fontSize: '12px', fill: '#fff' }
+        ).setOrigin(0.5);
+
+        container.add([claimText]);
     }
 
     return container;
   }
 
-  handleCaseClick(caseData, container, index) {
+  async handleCaseClick(caseData, container, index) {
     if (this.selectedLeader) {
       const leader = this.gameState.player.leaders.find(l => l.leaderId === this.selectedLeader);
       if (leader) {
-        // Add to pending placements instead of sending to backend
-        const placement = {
-          leaderId: leader.leaderId,
-          caseId: caseData.caseId,
-          useUnique: this.selectedLeaderUnique
-        };
-        
-        // Check if leader is already placed
-        const existingPlacement = this.pendingLeaderPlacements.find(p => p.leaderId === leader.leaderId);
+        // Check if this leader already has a pending placement
+        const existingPlacement = this.pendingPlacements.find(p => p.leaderId === leader.leaderId);
         if (existingPlacement) {
           // Update existing placement
           existingPlacement.caseId = caseData.caseId;
           existingPlacement.useUnique = this.selectedLeaderUnique;
         } else {
           // Add new placement
-          this.pendingLeaderPlacements.push(placement);
+          this.pendingPlacements.push({
+            leaderId: leader.leaderId,
+            caseId: caseData.caseId,
+            useUnique: this.selectedLeaderUnique
+          });
         }
-        
-        // Update all case displays to reflect the new state
-        this.updateCasesDisplay();
 
         // Clear selection
         this.selectedLeader = null;
@@ -580,14 +675,17 @@ export default class GameScene extends Phaser.Scene {
           this.updateLeaderSelection(display, leader, leader.leaderId);
         }
 
-        // Show commit turn button if we have pending placements
-        this.commitTurnButton.visible = this.pendingLeaderPlacements.length > 0;
+        // Update the display to show pending placement
+        this.updateCasesDisplay();
+        
+        // Show commit button since we have pending placements
+        this.commitTurnButton.visible = true;
       }
     }
   }
 
   async handleCommitTurn() {
-    console.log('GameScene: Committing turn with placements:', this.pendingLeaderPlacements);
+    console.log('GameScene: Committing turn with pending placements:', this.pendingPlacements);
     try {
       const response = await fetch(`${BACKEND_URL}/api/games/${this.gameId}/commit-turn`, {
         method: 'POST',
@@ -596,9 +694,8 @@ export default class GameScene extends Phaser.Scene {
           'X-Player-UUID': this.playerUUID
         },
         body: JSON.stringify({
-          leaderPlacements: this.pendingLeaderPlacements,
-          uniqueAbilityUses: [], // Add if needed
-          upgrades: [] // Add if needed
+          leaderPlacements: this.pendingPlacements,
+          upgrades: []
         })
       });
 
@@ -607,9 +704,24 @@ export default class GameScene extends Phaser.Scene {
         return;
       }
 
+      // Update the game state to reflect the committed placements
+      this.gameState = {
+        ...this.gameState,
+        player: {
+          ...this.gameState.player,
+          turnActions: {
+            ...this.gameState.player.turnActions,
+            leaderPlacements: this.pendingPlacements
+          }
+        }
+      };
+
       // Clear pending placements after successful commit
-      this.pendingLeaderPlacements = [];
+      this.pendingPlacements = [];
       this.commitTurnButton.visible = false;
+
+      // Update the display to reflect the committed state
+      this.updateCasesDisplay();
 
       console.log('Successfully committed turn');
     } catch (error) {
@@ -646,7 +758,7 @@ export default class GameScene extends Phaser.Scene {
       activeLeaderIds.add(leaderId);
 
       // Find if this leader has a pending placement
-      const pendingPlacement = this.pendingLeaderPlacements.find(p => p.leaderId === leaderId);
+      const pendingPlacement = this.gameState.player.turnActions.leaderPlacements.find(p => p.leaderId === leaderId);
       
       let display;
       if (this.leaderPool.has(leaderId)) {
@@ -762,6 +874,9 @@ export default class GameScene extends Phaser.Scene {
 
     // Update background size to fit all leaders
     this.leadersBg.setSize(300, totalHeight);
+
+    // Show commit turn button if we have any turn actions
+    this.commitTurnButton.visible = this.gameState.player.turnActions.leaderPlacements.length > 0;
   }
 
   handleLeaderClick(leaderId, leader) {
