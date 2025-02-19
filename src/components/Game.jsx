@@ -31,7 +31,7 @@ function Game() {
     };
   }, []); // Empty dependency array means this effect runs once on mount
 
-  return <div id="game-container" style={{ width: '90vw', height: '100vh' }} />;
+  return <div id="game-container" style={{ width: '95vw', height: '100vh' }} />;
 }
 
 export default Game; 
