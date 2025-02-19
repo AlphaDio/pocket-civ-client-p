@@ -45,64 +45,77 @@ export default class GameScene extends Phaser.Scene {
 
   createUI() {
     console.log('GameScene: Setting up UI components');
-    // Game status text
+    const screenWidth = this.scale.width;
+    const screenHeight = this.scale.height;
+    
+    // Game status text - moved to top
     this.statusText = this.add.text(10, 10, 'Loading game state...', {
-      fontSize: '24px',
+      fontSize: '18px', // Reduced size
       fill: '#fff'
     });
 
-    // Current player info and resources (horizontal layout)
-    this.playerInfo = this.add.text(10, 50, '', {
+    // Current Era and Round - moved to top right
+    this.eraInfo = this.add.text(screenWidth - 10, 10, '', {
+      fontSize: '16px', // Reduced size
+      fill: '#fff',
+      align: 'right'
+    }).setOrigin(1, 0);
+
+    // Current player info and resources - moved below status
+    this.playerInfo = this.add.text(10, 40, '', {
       fontSize: '14px',
       fill: '#fff'
     });
 
-    // Container for other players (will flow horizontally)
-    this.otherPlayersContainer = this.add.container(400, 10);
-    
-    // Create a background for other players section
-    const otherPlayersBg = this.add.rectangle(0, 0, 0, 0, 0x222222, 0.5);
+    // Container for other players - moved below player info, made scrollable horizontally
+    this.otherPlayersContainer = this.add.container(0, 80);
+    const otherPlayersBg = this.add.rectangle(0, 0, 0, 80, 0x222222, 0.5);
     this.otherPlayersContainer.add(otherPlayersBg);
     this.otherPlayersBg = otherPlayersBg;
 
-    // Current Era and Round
-    this.eraInfo = this.add.text(10, 90, '', {
-      fontSize: '20px',
-      fill: '#fff'
-    });
+    // Cases container - centered in middle of screen
+    const casesY = Math.floor(screenHeight * 0.4); // 40% down the screen
+    this.casesContainer = this.add.container(screenWidth / 2, casesY);
+    
+    // Leaders container - moved to bottom
+    const leadersY = screenHeight - 120;
+    this.leadersContainer = this.add.container(10, leadersY);
+    const leadersBg = this.add.rectangle(0, 0, screenWidth - 20, 110, 0x222222, 0.5);
+    this.leadersContainer.add(leadersBg);
+    this.leadersBg = leadersBg;
 
-    // Commit Turn button - move to bottom right
+    // Commit Turn button - moved to bottom right
     this.commitTurnButton = this.add.text(
-        this.sys.game.config.width - 20,
-        this.sys.game.config.height - 60,
-        'Commit Turn',
-        {
-            fontSize: '24px',
-            fill: '#00ff00',
-            backgroundColor: '#444',
-            padding: { x: 20, y: 10 }
-        }
+      screenWidth - 10,
+      screenHeight - 20,
+      'Commit Turn',
+      {
+        fontSize: '18px', // Reduced size
+        fill: '#00ff00',
+        backgroundColor: '#444',
+        padding: { x: 10, y: 5 }
+      }
     )
-    .setOrigin(1, 0.5)  // Align to right side
+    .setOrigin(1, 1)
     .setInteractive()
     .on('pointerdown', () => this.handleCommitTurn())
     .on('pointerover', () => this.commitTurnButton.setStyle({ fill: '#88ff88' }))
     .on('pointerout', () => this.commitTurnButton.setStyle({ fill: '#00ff00' }));
     this.commitTurnButton.visible = false;
 
-    // Force Process Turn button - move to bottom right, above Commit Turn
+    // Force Process Turn button - moved above commit button
     this.forceProcessButton = this.add.text(
-        this.sys.game.config.width - 20,
-        this.sys.game.config.height - 110,  // Position above Commit Turn
-        'Force Process Turn',
-        {
-            fontSize: '24px',
-            fill: '#ff0000',
-            backgroundColor: '#444',
-            padding: { x: 20, y: 10 }
-        }
+      screenWidth - 10,
+      screenHeight - 50,
+      'Force Process',
+      {
+        fontSize: '18px', // Reduced size
+        fill: '#ff0000',
+        backgroundColor: '#444',
+        padding: { x: 10, y: 5 }
+      }
     )
-    .setOrigin(1, 0.5)  // Align to right side
+    .setOrigin(1, 1)
     .setInteractive()
     .on('pointerdown', () => this.handleForceProcessTurn())
     .on('pointerover', () => this.forceProcessButton.setStyle({ fill: '#ff8888' }))
@@ -123,9 +136,6 @@ export default class GameScene extends Phaser.Scene {
     .on('pointerout', () => this.startGameButton.setStyle({ fill: '#00ff00' }));
     this.startGameButton.visible = false;
 
-    // Create a container for cases
-    this.casesContainer = this.add.container(400, 300);
-    
     // Add scrolling functionality
     this.input.on('pointerdown', this.startDrag, this);
     this.input.on('pointermove', this.doDrag, this);
@@ -135,12 +145,6 @@ export default class GameScene extends Phaser.Scene {
     // Add scroll state
     this.isDragging = false;
     this.lastPointerX = 0;
-
-    // Create leaders container at bottom left
-    this.leadersContainer = this.add.container(10, this.sys.game.config.height - 140);
-    const leadersBg = this.add.rectangle(0, 0, 300, 100, 0x222222, 0.5);
-    this.leadersContainer.add(leadersBg);
-    this.leadersBg = leadersBg;
   }
 
   startDrag(pointer) {
@@ -360,8 +364,8 @@ export default class GameScene extends Phaser.Scene {
     }
 
     let xOffset = 10;
-    const padding = 20;
-    const playerWidth = 120;
+    const padding = 10;
+    const playerWidth = 100;
 
     otherPlayers.forEach((player, index) => {
       const playerId = player.id;
@@ -387,7 +391,7 @@ export default class GameScene extends Phaser.Scene {
       } else {
         // Create new player display
         const text = this.add.text(xOffset, 10, playerText, {
-          fontSize: '12px',
+          fontSize: '10px', // Smaller font
           fill: '#aaa',
           align: 'left'
         });
@@ -579,36 +583,43 @@ export default class GameScene extends Phaser.Scene {
     console.log(`GameScene: Creating case card for ${caseData.name} at position (${x}, ${y})`);
     const container = this.add.container(x, y);
 
+    // Smaller card size for mobile
+    const cardWidth = 120;
+    const cardHeight = 160;
+
     // Card background
-    const bg = this.add.rectangle(0, 0, 150, 200, 0x333333);
+    const bg = this.add.rectangle(0, 0, cardWidth, cardHeight, 0x333333);
     bg.setInteractive();
     bg.on('pointerover', () => bg.setFillStyle(0x444444));
     bg.on('pointerout', () => bg.setFillStyle(0x333333));
     bg.on('pointerdown', () => this.handleCaseClick(caseData, container, index));
 
-    // Case name
-    const nameText = this.add.text(0, -80, caseData.name, {
-      fontSize: '16px',
-      fill: '#fff'
+    // Case name - smaller text
+    const nameText = this.add.text(0, -60, caseData.name, {
+      fontSize: '14px',
+      fill: '#fff',
+      align: 'center',
+      wordWrap: { width: cardWidth - 10 }
     }).setOrigin(0.5);
 
-    // Case type
-    const typeText = this.add.text(0, -60, caseData.type, {
-      fontSize: '14px',
+    // Case type - smaller text
+    const typeText = this.add.text(0, -40, caseData.type, {
+      fontSize: '12px',
       fill: '#aaa'
     }).setOrigin(0.5);
 
-    // Leaders container text (initially empty)
-    const leadersText = this.add.text(0, 60, '', {
-      fontSize: '12px',
+    // Leaders container text - smaller text
+    const leadersText = this.add.text(0, 40, '', {
+      fontSize: '10px',
       fill: '#fff',
       align: 'center',
-      wordWrap: { width: 140 }
+      wordWrap: { width: cardWidth - 10 }
     }).setOrigin(0.5);
 
     container.add([bg, nameText, typeText, leadersText]);
 
-    let yOffset = -30;
+    // Update exploration/claim text position and size
+    let yOffset = -20;
 
     if (caseData.owner) {
         // Show owner if case is claimed
@@ -746,8 +757,8 @@ export default class GameScene extends Phaser.Scene {
     }
 
     // Calculate total height needed
-    const leaderHeight = 70; // Height needed for each leader
-    const padding = 10; // Padding at top and bottom
+    const leaderHeight = 60; // Reduced height
+    const padding = 5; // Reduced padding
     const totalHeight = Math.max(100, (leaders.length * leaderHeight) + (padding * 2));
     
     // Start from the bottom
@@ -789,6 +800,11 @@ export default class GameScene extends Phaser.Scene {
         display.knowledgeText.visible = true;
         display.uniqueText.visible = true;
         display.bg.visible = true;
+
+        // Update text sizes
+        display.nameText.setStyle({ fontSize: '12px' });
+        display.knowledgeText.setStyle({ fontSize: '10px' });
+        display.uniqueText.setStyle({ fontSize: '10px' });
       } else {
         // Create background for the leader
         const bg = this.add.rectangle(0, 0, 290, leaderHeight - 10, 0x333333);

@@ -18,55 +18,60 @@ export default class MenuScene extends Phaser.Scene {
 
   create() {
     console.log('MenuScene: Creating UI elements');
-    // Add title
-    this.add.text(400, 100, 'PocketCiv', {
-      fontSize: '48px',
-      fill: '#fff'
-    }).setOrigin(0.5);
-
-    // Create Game button
-    const createButton = this.add.text(400, 180, 'Create New Game', {
+    
+    // Get screen dimensions
+    const screenWidth = this.scale.width;
+    const screenCenter = screenWidth / 2;
+    
+    // Add title - moved higher up
+    this.add.text(screenCenter, 50, 'PocketCiv', {
       fontSize: '32px',
-      fill: '#fff',
-      backgroundColor: '#444',
-      padding: { x: 20, y: 10 }
-    })
-    .setOrigin(0.5)
-    .setInteractive();
-
-    // Available Games title
-    this.add.text(400, 250, 'Available Games', {
-      fontSize: '28px',
       fill: '#fff'
     }).setOrigin(0.5);
 
-    // Create container for games list
-    this.gamesListContainer = this.add.container(400, 350);
-
-    // Refresh button
-    const refreshButton = this.add.text(600, 250, 'Refresh', {
-      fontSize: '20px',
+    // Create Game button - adjusted position and size
+    const createButton = this.add.text(screenCenter, 100, 'Create New Game', {
+      fontSize: '24px',
       fill: '#fff',
       backgroundColor: '#444',
-      padding: { x: 10, y: 5 }
+      padding: { x: 15, y: 8 }
     })
     .setOrigin(0.5)
     .setInteractive();
 
-    // Input field for player name
-    this.playerNameText = this.add.text(400, 550, 'Enter your name:', {
+    // Available Games title - adjusted position
+    const gamesTitle = this.add.text(screenCenter - 50, 160, 'Available Games', {
       fontSize: '24px',
       fill: '#fff'
     }).setOrigin(0.5);
 
-    // Create an HTML input element for the player name
+    // Refresh button - repositioned next to title
+    const refreshButton = this.add.text(screenCenter + 80, 160, 'Refresh', {
+      fontSize: '18px',
+      fill: '#fff',
+      backgroundColor: '#444',
+      padding: { x: 8, y: 4 }
+    })
+    .setOrigin(0.5)
+    .setInteractive();
+
+    // Create container for games list - adjusted position
+    this.gamesListContainer = this.add.container(screenCenter, 200);
+
+    // Input field for player name - moved to bottom
+    this.playerNameText = this.add.text(screenCenter, this.scale.height - 100, 'Enter your name:', {
+      fontSize: '20px',
+      fill: '#fff'
+    }).setOrigin(0.5);
+
+    // Create an HTML input element for the player name - adjusted position and size
     const nameInput = document.createElement('input');
     nameInput.type = 'text';
-    nameInput.style = 'width: 200px; padding: 10px; font-size: 16px;';
+    nameInput.style = 'width: 160px; padding: 8px; font-size: 14px;';
     nameInput.placeholder = 'Your Name';
 
     // Add the input element to the game
-    this.nameInput = this.add.dom(400, 600, nameInput);
+    this.nameInput = this.add.dom(screenCenter, this.scale.height - 60, nameInput);
 
     // Button event handlers
     createButton.on('pointerdown', () => this.handleCreateGame());
@@ -106,9 +111,8 @@ export default class MenuScene extends Phaser.Scene {
     this.gamesListContainer.removeAll(true);
 
     if (games.length === 0) {
-      // Show "No games available" message
       const noGamesText = this.add.text(0, 0, 'No games available', {
-        fontSize: '20px',
+        fontSize: '18px',
         fill: '#888'
       }).setOrigin(0.5);
       
@@ -116,18 +120,17 @@ export default class MenuScene extends Phaser.Scene {
       return;
     }
 
-    // Get current player's UUID from localStorage
     const currentPlayerUUID = localStorage.getItem('playerUUID') || this.playerUUID;
 
-    // Create game entries
+    // Create game entries with adjusted spacing and layout
     games.forEach((game, index) => {
-      const yOffset = index * 60;
+      const yOffset = index * 80; // Increased vertical spacing
       
-      // Game info text
-      const gameText = this.add.text(-200, yOffset,
+      // Game info text - adjusted position and size
+      const gameText = this.add.text(-100, yOffset,
         `Game ${game.id}\nPlayers: ${game.players.length}\nStatus: ${game.status}`,
         {
-          fontSize: '18px',
+          fontSize: '16px',
           fill: '#fff',
           align: 'left'
         }
@@ -135,13 +138,13 @@ export default class MenuScene extends Phaser.Scene {
 
       const gameElements = [gameText];
 
-      // Show Join/Continue button for all games
-      const buttonText = game.players.some(p => p.id === currentPlayerUUID) ? 'Continue' : 'Join Game';
-      const joinButton = this.add.text(100, yOffset, buttonText, {
-        fontSize: '20px',
+      // Join/Continue button - adjusted position and size
+      const buttonText = game.players.some(p => p.id === currentPlayerUUID) ? 'Continue' : 'Join';
+      const joinButton = this.add.text(50, yOffset, buttonText, {
+        fontSize: '16px',
         fill: '#00ff00',
         backgroundColor: '#444',
-        padding: { x: 10, y: 5 }
+        padding: { x: 8, y: 4 }
       })
       .setInteractive()
       .on('pointerdown', () => this.handleJoinGame(game.id))
@@ -150,16 +153,13 @@ export default class MenuScene extends Phaser.Scene {
 
       gameElements.push(joinButton);
 
-      // Debug log for game status
-      console.log(`MenuScene: Game ${game.id} status:`, game.status);
-
-      // Show delete button for waiting games, close button for in progress games
+      // Delete/Close button - adjusted position and size
       if (game.status.toLowerCase() === 'in_progress' || game.status.toLowerCase() === 'in progress') {
-        const closeButton = this.add.text(200, yOffset, 'Close', {
-          fontSize: '20px',
+        const closeButton = this.add.text(120, yOffset, 'Close', {
+          fontSize: '16px',
           fill: '#ff0000',
           backgroundColor: '#444',
-          padding: { x: 10, y: 5 }
+          padding: { x: 8, y: 4 }
         })
         .setInteractive()
         .on('pointerdown', () => this.handleCloseGame(game.id))
@@ -168,11 +168,11 @@ export default class MenuScene extends Phaser.Scene {
 
         gameElements.push(closeButton);
       } else if (game.status.toLowerCase() === 'waiting') {
-        const deleteButton = this.add.text(200, yOffset, 'Delete', {
-          fontSize: '20px',
+        const deleteButton = this.add.text(120, yOffset, 'Delete', {
+          fontSize: '16px',
           fill: '#ff0000',
           backgroundColor: '#444',
-          padding: { x: 10, y: 5 }
+          padding: { x: 8, y: 4 }
         })
         .setInteractive()
         .on('pointerdown', () => this.handleDeleteGame(game.id))
@@ -332,8 +332,8 @@ export default class MenuScene extends Phaser.Scene {
     console.warn('MenuScene: Showing error:', message);
     if (this.messageText) this.messageText.destroy();
     
-    this.messageText = this.add.text(400, 650, message, {
-      fontSize: '20px',
+    this.messageText = this.add.text(this.scale.width / 2, this.scale.height - 20, message, {
+      fontSize: '16px',
       fill: '#ff0000'
     }).setOrigin(0.5);
 
@@ -346,8 +346,8 @@ export default class MenuScene extends Phaser.Scene {
     console.log('MenuScene: Showing success:', message);
     if (this.messageText) this.messageText.destroy();
     
-    this.messageText = this.add.text(400, 650, message, {
-      fontSize: '20px',
+    this.messageText = this.add.text(this.scale.width / 2, this.scale.height - 20, message, {
+      fontSize: '16px',
       fill: '#00ff00'
     }).setOrigin(0.5);
 
