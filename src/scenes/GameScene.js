@@ -84,6 +84,12 @@ export default class GameScene extends Phaser.Scene {
     this.leadersContainer.add(leadersBg);
     this.leadersBg = leadersBg;
 
+    // Add player UUID display above leaders container
+    this.playerUUIDText = this.add.text(10, leadersY - 20, `Your ID: ${this.playerUUID.slice(-3)}`, {
+      fontSize: '12px',
+      fill: '#aaa'
+    });
+
     // Commit Turn button - moved to bottom right
     this.commitTurnButton = this.add.text(
       screenWidth - 10,
@@ -163,7 +169,7 @@ export default class GameScene extends Phaser.Scene {
     
     // Get the total width of all cards
     const totalCardsWidth = this.gameState ? 
-      (this.gameState.currentCases.length * (150 + 20)) : 0;
+      (this.gameState.currentCases.length * (180 + 30)) : 0;
     
     // Set bounds for scrolling
     const minX = this.sys.game.config.width - totalCardsWidth;
@@ -441,8 +447,8 @@ export default class GameScene extends Phaser.Scene {
     // Store current container position
     const currentX = this.casesContainer.x;
     
-    const cardWidth = 150;
-    const padding = 20;
+    const cardWidth = 180;
+    const padding = 30;
 
     // Track which cases are still in use
     const activeCaseIds = new Set();
@@ -493,8 +499,8 @@ export default class GameScene extends Phaser.Scene {
     // Find existing elements in the container
     const [bg, nameText, typeText, leadersText, ...otherElements] = container.list;
 
-    // Update text content
-    nameText.setText(caseData.name);
+    // Update text content based on revealed status
+    nameText.setText(caseData.isRevealed ? caseData.name : '???');
     typeText.setText(caseData.type);
 
     // Remove any existing exploration/claim/owner texts
@@ -505,7 +511,7 @@ export default class GameScene extends Phaser.Scene {
     if (caseData.owner) {
         // Show owner if case is claimed
         const ownerText = this.add.text(0, yOffset,
-            `Claimed by: ${caseData.owner.slice(-3)}`,
+            `${caseData.owner.slice(-3)}`,
             { fontSize: '12px', fill: '#00ff00' }
         ).setOrigin(0.5);
         
@@ -514,23 +520,22 @@ export default class GameScene extends Phaser.Scene {
         // Show exploration points for unrevealed cases
         const explorationPointsText = Object.entries(caseData.explorationPoints || {})
             .map(([uuid, points]) => `${points}[${uuid.slice(-3)}]`)
-            .join(', ');
+            .join(' ');
         
         const explorationText = this.add.text(0, yOffset,
-            `Exploration: ${explorationPointsText || '0'}/${caseData.explorationThreshold}`,
+            explorationPointsText,
             { fontSize: '12px', fill: '#fff' }
         ).setOrigin(0.5);
         
         container.add([explorationText]);
     } else {
         // Show claim points for revealed but unclaimed cases
-        const claimPoints = caseData.claimPoints || {};
-        const claimPointsValue = typeof claimPoints.get === 'function' 
-            ? claimPoints.get(this.playerUUID) 
-            : (claimPoints[this.playerUUID] || 0);
+        const claimPointsText = Object.entries(caseData.claimPoints || {})
+            .map(([uuid, points]) => `${points}[${uuid.slice(-3)}]`)
+            .join(' ');
         
         const claimText = this.add.text(0, yOffset,
-            `Claim: ${claimPointsValue}/${caseData.claimThreshold}`,
+            claimPointsText,
             { fontSize: '12px', fill: '#fff' }
         ).setOrigin(0.5);
 
@@ -583,9 +588,9 @@ export default class GameScene extends Phaser.Scene {
     console.log(`GameScene: Creating case card for ${caseData.name} at position (${x}, ${y})`);
     const container = this.add.container(x, y);
 
-    // Smaller card size for mobile
-    const cardWidth = 120;
-    const cardHeight = 160;
+    // Larger card size
+    const cardWidth = 180;
+    const cardHeight = 240;
 
     // Card background
     const bg = this.add.rectangle(0, 0, cardWidth, cardHeight, 0x333333);
@@ -594,38 +599,38 @@ export default class GameScene extends Phaser.Scene {
     bg.on('pointerout', () => bg.setFillStyle(0x333333));
     bg.on('pointerdown', () => this.handleCaseClick(caseData, container, index));
 
-    // Case name - smaller text
-    const nameText = this.add.text(0, -60, caseData.name, {
-      fontSize: '14px',
+    // Case name - larger text, hidden if not revealed
+    const nameText = this.add.text(0, -90, caseData.isRevealed ? caseData.name : '???', {
+      fontSize: '18px',
       fill: '#fff',
       align: 'center',
-      wordWrap: { width: cardWidth - 10 }
+      wordWrap: { width: cardWidth - 20 }
     }).setOrigin(0.5);
 
-    // Case type - smaller text
-    const typeText = this.add.text(0, -40, caseData.type, {
-      fontSize: '12px',
+    // Case type - larger text
+    const typeText = this.add.text(0, -60, caseData.type, {
+      fontSize: '14px',
       fill: '#aaa'
     }).setOrigin(0.5);
 
-    // Leaders container text - smaller text
-    const leadersText = this.add.text(0, 40, '', {
-      fontSize: '10px',
+    // Leaders container text - larger text
+    const leadersText = this.add.text(0, 60, '', {
+      fontSize: '12px',
       fill: '#fff',
       align: 'center',
-      wordWrap: { width: cardWidth - 10 }
+      wordWrap: { width: cardWidth - 20 }
     }).setOrigin(0.5);
 
     container.add([bg, nameText, typeText, leadersText]);
 
-    // Update exploration/claim text position and size
-    let yOffset = -20;
+    // Update owner text position and size if case is claimed
+    let yOffset = -30;
 
     if (caseData.owner) {
         // Show owner if case is claimed
         const ownerText = this.add.text(0, yOffset,
-            `Claimed by: ${caseData.owner.slice(-3)}`,
-            { fontSize: '12px', fill: '#00ff00' }
+            `${caseData.owner.slice(-3)}`,
+            { fontSize: '14px', fill: '#00ff00' }
         ).setOrigin(0.5);
         
         container.add([ownerText]);
@@ -633,24 +638,23 @@ export default class GameScene extends Phaser.Scene {
         // Show exploration points for unrevealed cases
         const explorationPointsText = Object.entries(caseData.explorationPoints || {})
             .map(([uuid, points]) => `${points}[${uuid.slice(-3)}]`)
-            .join(', ');
+            .join(' ');
         
         const explorationText = this.add.text(0, yOffset,
-            `Exploration: ${explorationPointsText || '0'}/${caseData.explorationThreshold}`,
-            { fontSize: '12px', fill: '#fff' }
+            explorationPointsText,
+            { fontSize: '14px', fill: '#fff' }
         ).setOrigin(0.5);
         
         container.add([explorationText]);
     } else {
         // Show claim points for revealed but unclaimed cases
-        const claimPoints = caseData.claimPoints || {};
-        const claimPointsValue = typeof claimPoints.get === 'function' 
-            ? claimPoints.get(this.playerUUID) 
-            : (claimPoints[this.playerUUID] || 0);
+        const claimPointsText = Object.entries(caseData.claimPoints || {})
+            .map(([uuid, points]) => `${points}[${uuid.slice(-3)}]`)
+            .join(' ');
         
         const claimText = this.add.text(0, yOffset,
-            `Claim: ${claimPointsValue}/${caseData.claimThreshold}`,
-            { fontSize: '12px', fill: '#fff' }
+            claimPointsText,
+            { fontSize: '14px', fill: '#fff' }
         ).setOrigin(0.5);
 
         container.add([claimText]);
@@ -782,12 +786,13 @@ export default class GameScene extends Phaser.Scene {
           leader.knowledgeTypes.map(k => `${k.type.substring(0, 3)}: ${k.amount}`).join(' | ')
         );
         
-        // Update unique ability text and add case info if placed
+        // Update unique ability text and add case position if placed
         let uniqueAbilityText = `${leader.uniqueAbility.name} (${leader.uniqueAbility.usedThisEra ? 'Used' : 'Available'})`;
         if (pendingPlacement) {
-          const targetCase = this.gameState.currentCases.find(c => c.caseId === pendingPlacement.caseId);
-          if (targetCase) {
-            uniqueAbilityText += ` | Case: ${targetCase.name}`;
+          // Find case position by matching caseId
+          const casePosition = this.gameState.currentCases.findIndex(c => c.caseId === pendingPlacement.caseId) + 1;
+          if (casePosition > 0) {
+            uniqueAbilityText += ` | Case: #${casePosition}`;
           }
         }
         display.uniqueText.setText(uniqueAbilityText);
@@ -839,12 +844,13 @@ export default class GameScene extends Phaser.Scene {
           leader.knowledgeTypes.map(k => `${k.type.substring(0, 3)}: ${k.amount}`).join(' | ')
         );
         
-        // Set initial unique ability text with case info if placed
+        // Set initial unique ability text with case position if placed
         let initialUniqueText = `${leader.uniqueAbility.name} (${leader.uniqueAbility.usedThisEra ? 'Used' : 'Available'})`;
         if (pendingPlacement) {
-          const targetCase = this.gameState.currentCases.find(c => c.caseId === pendingPlacement.caseId);
-          if (targetCase) {
-            initialUniqueText += ` | Case: ${targetCase.name}`;
+          // Find case position by matching caseId
+          const casePosition = this.gameState.currentCases.findIndex(c => c.caseId === pendingPlacement.caseId) + 1;
+          if (casePosition > 0) {
+            initialUniqueText += ` | Case: #${casePosition}`;
           }
         }
         display.uniqueText.setText(initialUniqueText);
