@@ -204,7 +204,7 @@ export default class MenuScene extends Phaser.Scene {
         },
         body: JSON.stringify({ 
           playerName,
-          playerUUID: this.playerUUID // Include UUID if we have one
+          playerUUID: localStorage.getItem('playerUUID') || this.playerUUID
         })
       });
 
@@ -213,11 +213,15 @@ export default class MenuScene extends Phaser.Scene {
         console.log(`MenuScene: Game created successfully - GameId: ${data.gameId}`);
         this.gameId = data.gameId;
         
-        // Store playerUUID in memory only
+        // Store playerUUID in both memory and localStorage
         if (data.playerUUID) {
           console.log('MenuScene: Received new playerUUID:', data.playerUUID);
           this.playerUUID = data.playerUUID;
+          localStorage.setItem('playerUUID', data.playerUUID);
         }
+        
+        // Store gameId in localStorage
+        localStorage.setItem('gameId', data.gameId);
         
         // Refresh games list and show success message
         this.fetchGames();
@@ -250,7 +254,7 @@ export default class MenuScene extends Phaser.Scene {
         },
         body: JSON.stringify({ 
           playerName,
-          playerUUID: this.playerUUID
+          playerUUID: localStorage.getItem('playerUUID') || this.playerUUID
         })
       });
 
@@ -259,11 +263,15 @@ export default class MenuScene extends Phaser.Scene {
         console.log('MenuScene: Joined game successfully');
         this.gameId = gameId;
         
-        // Store playerUUID in memory only
+        // Store playerUUID both in memory and localStorage
         if (data.playerUUID) {
           console.log('MenuScene: Received playerUUID:', data.playerUUID);
           this.playerUUID = data.playerUUID;
+          localStorage.setItem('playerUUID', data.playerUUID);
         }
+        
+        // Store gameId in localStorage
+        localStorage.setItem('gameId', gameId);
         
         this.startGame();
       } else {
