@@ -8,7 +8,8 @@ export default class GameScene extends Phaser.Scene {
     this.gameState = null;
     this.gameId = null;
     this.playerUUID = null;
-    this.casePool = new Map(); // Pool to store case containers
+    this.currentCasePool = new Map(); // Pool for current era cases
+    this.historyCasePool = new Map(); // Pool for historical cases
     this.leaderPool = new Map(); // Pool to store leader display objects
     this.playerPool = new Map(); // Pool to store other player display objects
     this.selectedLeader = null; // Track currently selected leader
@@ -16,6 +17,7 @@ export default class GameScene extends Phaser.Scene {
     this.pendingPlacements = []; // Track local leader placements before commit
     this.shouldInitialize = true;
     this.pollTimer = null; // Track polling timer
+    this.isPollingPaused = false; // Track if polling is paused
     console.log('GameScene: Initialized');
   }
 
@@ -80,10 +82,50 @@ export default class GameScene extends Phaser.Scene {
     this.otherPlayersContainer.add(otherPlayersBg);
     this.otherPlayersBg = otherPlayersBg;
 
-    // Cases container - centered in middle of screen
+    // Cases containers - centered in middle of screen
     const casesY = Math.floor(screenHeight * 0.4); // 40% down the screen
-    this.casesContainer = this.add.container(screenWidth / 2, casesY);
     
+    // Current cases container
+    this.casesContainer = this.add.container(0, casesY);
+    
+    // History cases container - at same Y as current cases
+    this.historyCasesContainer = this.add.container(0, casesY);
+    
+    // Add era navigation buttons
+    this.prevEraButton = this.add.text(10, casesY - 50, '⬆️ Previous Era', {
+      fontSize: '16px',
+      fill: '#fff',
+      backgroundColor: '#444',
+      padding: { x: 10, y: 5 }
+    })
+    .setInteractive()
+    .on('pointerdown', () => this.navigateEra('prev'))
+    .setVisible(false);
+
+    this.nextEraButton = this.add.text(10, casesY + 250, '⬇️ Next Era', {
+      fontSize: '16px',
+      fill: '#fff',
+      backgroundColor: '#444',
+      padding: { x: 10, y: 5 }
+    })
+    .setInteractive()
+    .on('pointerdown', () => this.navigateEra('next'))
+    .setVisible(false);
+
+    // Track current visible era
+    this.currentVisibleEra = null;
+    
+    // Add scroll state for containers
+    this.isDragging = false;
+    this.lastPointerX = 0;
+    this.dragTarget = null;
+
+    // Add era label
+    this.eraLabel = this.add.text(screenWidth / 2, casesY - 30, '', {
+      fontSize: '18px',
+      fill: '#fff'
+    }).setOrigin(0.5, 0);
+
     // Leaders container - moved to bottom
     const leadersY = screenHeight - 120;
     this.leadersContainer = this.add.container(10, leadersY);
@@ -154,43 +196,67 @@ export default class GameScene extends Phaser.Scene {
     this.input.on('pointermove', this.doDrag, this);
     this.input.on('pointerup', this.stopDrag, this);
     this.input.on('pointerout', this.stopDrag, this);
-
-    // Add scroll state
-    this.isDragging = false;
-    this.lastPointerX = 0;
   }
 
   startDrag(pointer) {
     this.isDragging = true;
     this.lastPointerX = pointer.x;
+    
+    // Cancel any existing polling timer
+    if (this.pollTimer) {
+      this.pollTimer.remove();
+      this.pollTimer = null;
+    }
+    this.isPollingPaused = true;
+    
+    // Simply use whichever container is currently visible
+    if (this.currentVisibleEra === this.gameState.currentEra) {
+      this.dragTarget = this.casesContainer;
+    } else {
+      this.dragTarget = this.historyCasesContainer;
+    }
   }
 
   doDrag(pointer) {
-    if (!this.isDragging) return;
+    if (!this.isDragging || !this.dragTarget) return;
 
     const deltaX = pointer.x - this.lastPointerX;
     this.lastPointerX = pointer.x;
 
-    // Calculate new container position
-    const newX = this.casesContainer.x + deltaX;
-    
-    // Get the total width of all cards
-    const totalCardsWidth = this.gameState ? 
-      (this.gameState.currentCases.length * (180 + 30)) : 0;
-    
-    // Set bounds for scrolling
-    const minX = this.sys.game.config.width - totalCardsWidth;
-    const maxX = this.sys.game.config.width - 200; // Leave some space on the right
-
-    // Apply bounded position
-    this.casesContainer.x = Math.max(minX, Math.min(maxX, newX));
+    // Simply update the container position with no constraints
+    this.dragTarget.x += deltaX;
   }
 
   stopDrag() {
     this.isDragging = false;
+    this.dragTarget = null;
+    this.isPollingPaused = false;
+    
+    // Start a new polling cycle
+    if (!this.pollTimer) {
+      this.schedulePoll();
+    }
+  }
+
+  schedulePoll(delay = 5000) {
+    // Clear any existing timer
+    if (this.pollTimer) {
+      this.pollTimer.remove();
+      this.pollTimer = null;
+    }
+    
+    // Schedule the next poll
+    if (!this.isPollingPaused) {
+      this.pollTimer = this.time.delayedCall(delay, () => this.pollGameState());
+    }
   }
 
   async pollGameState() {
+    if (this.isPollingPaused) {
+      console.log('GameScene: Polling paused');
+      return;
+    }
+
     console.log(`GameScene: Polling game state from ${BACKEND_URL}`);
     try {
       console.log(`GameScene: Fetching state for game ${this.gameId}`);
@@ -209,14 +275,14 @@ export default class GameScene extends Phaser.Scene {
       console.log('GameScene: Received game state:', gameState);
       this.updateGameState(gameState);
 
-      console.log('GameScene: Scheduling next poll in 5 seconds');
-      this.pollTimer = this.time.delayedCall(5000, () => this.pollGameState());
+      // Schedule the next poll
+      this.schedulePoll(5000);
     } catch (error) {
       console.error('GameScene: Error polling game state:', error);
       this.statusText.setText('Error: Failed to fetch game state');
       
-      console.log('GameScene: Retrying poll in 10 seconds due to error');
-      this.pollTimer = this.time.delayedCall(10000, () => this.pollGameState());
+      // Schedule retry with longer delay
+      this.schedulePoll(10000);
     }
   }
 
@@ -281,8 +347,8 @@ export default class GameScene extends Phaser.Scene {
 
       console.log('GameScene: Turn force processed successfully');
       
-      // Trigger an immediate poll to get the updated game state
-      this.pollGameState();
+      // Schedule an immediate poll
+      this.schedulePoll(0);
     } catch (error) {
       console.error('GameScene: Error force processing turn:', error);
     }
@@ -302,7 +368,6 @@ export default class GameScene extends Phaser.Scene {
         ...gameState.player,
         turnActions: {
           ...gameState.player.turnActions,
-          // Local pending placements take precedence over server state
           leaderPlacements: this.pendingPlacements.length > 0 ? [] : (gameState.player.turnActions?.leaderPlacements || [])
         }
       }
@@ -328,9 +393,8 @@ export default class GameScene extends Phaser.Scene {
       gameState.player.uuid === gameState.creator
     );
 
-    // Update current player info and resources (horizontal layout)
+    // Update current player info and resources
     const player = gameState.player;
-    console.log(`GameScene: Updating player info - Name: ${player.name}, Era Points: ${player.eraPoints}`);
     this.playerInfo.setText(
       `${player.name} (${player.eraPoints} EP) | ` +
       `M:${player.resources.might}\n` +
@@ -352,11 +416,24 @@ export default class GameScene extends Phaser.Scene {
     // Only show cases if game is in progress
     if (gameState.status === 'in_progress') {
       console.log('GameScene: Updating cases display');
+      
+      // If currentVisibleEra is not set, default to current era
+      if (this.currentVisibleEra === null) {
+        this.currentVisibleEra = gameState.currentEra;
+      }
+      
       this.updateCasesDisplay();
+      this.updateHistoryCasesDisplay();
+      this.showEra(this.currentVisibleEra);
     } else {
       // Clear cases display if not in progress
       this.casesContainer.removeAll(true);
-      this.casePool.clear();
+      this.historyCasesContainer.removeAll(true);
+      this.currentCasePool.clear();
+      this.historyCasePool.clear();
+      this.prevEraButton.setVisible(false);
+      this.nextEraButton.setVisible(false);
+      this.eraLabel.setText('');
     }
 
     // Show commit button if we have any pending placements
@@ -451,11 +528,21 @@ export default class GameScene extends Phaser.Scene {
 
   updateCasesDisplay() {
     console.log(`GameScene: Refreshing cases display with ${this.gameState.currentCases.length} cases`);
-    // Store current container position
-    const currentX = this.casesContainer.x;
-    
+    // Only update if we're showing the current era
+    if (this.currentVisibleEra !== this.gameState.currentEra) {
+      this.casesContainer.removeAll(true);
+      return;
+    }
+
     const cardWidth = 180;
     const padding = 30;
+    const screenWidth = this.sys.game.config.width;
+    
+    // Calculate total width needed for all cards
+    const totalCardsWidth = this.gameState.currentCases.length * (cardWidth + padding) - padding;
+    
+    // Calculate starting X position to center the cards
+    let xOffset = (screenWidth - totalCardsWidth) / 2;
 
     // Track which cases are still in use
     const activeCaseIds = new Set();
@@ -465,129 +552,139 @@ export default class GameScene extends Phaser.Scene {
       const caseId = caseData.caseId;
       activeCaseIds.add(caseId);
 
-      const x = index * (cardWidth + padding);
+      const x = xOffset + index * (cardWidth + padding);
       const y = 0;
 
       let caseContainer;
-      if (this.casePool.has(caseId)) {
+      if (this.currentCasePool.has(caseId)) {
         // Update existing case
-        caseContainer = this.casePool.get(caseId);
+        caseContainer = this.currentCasePool.get(caseId);
         this.updateCaseCard(caseContainer, caseData, index);
         caseContainer.x = x;
         caseContainer.y = y;
       } else {
         // Create new case if not in pool
         caseContainer = this.createCaseCard(caseData, x, y, index);
-        this.casePool.set(caseId, caseContainer);
+        this.currentCasePool.set(caseId, caseContainer);
         this.casesContainer.add(caseContainer);
       }
     });
 
     // Remove cases that are no longer present
-    for (const [caseId, container] of this.casePool.entries()) {
+    for (const [caseId, container] of this.currentCasePool.entries()) {
       if (!activeCaseIds.has(caseId)) {
         container.destroy();
-        this.casePool.delete(caseId);
+        this.currentCasePool.delete(caseId);
       }
     }
 
-    // Get the total width of all cards
-    const totalCardsWidth = this.gameState.currentCases.length * (cardWidth + padding);
-    
-    // Calculate bounds
-    const minX = this.sys.game.config.width - totalCardsWidth;
-    const maxX = this.sys.game.config.width - 200; // Leave some space on the right
-
-    // Restore container position within bounds
-    this.casesContainer.x = Math.max(minX, Math.min(maxX, currentX));
+    // Reset container position to 0 since we're calculating absolute positions
+    this.casesContainer.x = 0;
   }
 
   updateCaseCard(container, caseData, index) {
-    // Find existing elements in the container
-    const [bg, nameText, typeText, leadersText, ...otherElements] = container.list;
-
-    // Update text content based on revealed status
-    nameText.setText(caseData.isRevealed ? caseData.name : '???');
-    typeText.setText(caseData.type);
-
-    // Remove any existing exploration/claim/owner texts
-    otherElements.forEach(element => element.destroy());
-
-    let yOffset = -30;
-
-    if (caseData.owner) {
-        // Show owner if case is claimed
-        const ownerText = this.add.text(0, yOffset,
-            `${caseData.owner.slice(-3)}`,
-            { fontSize: '12px', fill: '#00ff00' }
-        ).setOrigin(0.5);
-        
-        container.add([ownerText]);
-    } else if (!caseData.isRevealed) {
-        // Show exploration points for unrevealed cases
-        const explorationPointsText = Object.entries(caseData.explorationPoints || {})
-            .map(([uuid, points]) => `${points}[${uuid.slice(-3)}]`)
-            .join(' ');
-        
-        const explorationText = this.add.text(0, yOffset,
-            explorationPointsText,
-            { fontSize: '12px', fill: '#fff' }
-        ).setOrigin(0.5);
-        
-        container.add([explorationText]);
-    } else {
-        // Show claim points for revealed but unclaimed cases
-        const claimPointsText = Object.entries(caseData.claimPoints || {})
-            .map(([uuid, points]) => `${points}[${uuid.slice(-3)}]`)
-            .join(' ');
-        
-        const claimText = this.add.text(0, yOffset,
-            claimPointsText,
-            { fontSize: '12px', fill: '#fff' }
-        ).setOrigin(0.5);
-
-        container.add([claimText]);
+    if (!container || !container.list || container.list.length < 4) {
+      console.warn('Invalid container or missing elements for case:', caseData.caseId);
+      return;
     }
 
-    // Update leaders text with both placed and pending leaders
-    const currentLeaders = caseData.placedLeaders || [];
-    const serverPendingPlacement = this.gameState.player.turnActions.leaderPlacements.find(p => p.caseId === caseData.caseId);
-    const localPendingPlacement = this.pendingPlacements.find(p => p.caseId === caseData.caseId);
-    
-    if (currentLeaders.length > 0 || serverPendingPlacement || localPendingPlacement) {
-      const leaderStrings = [
-        ...currentLeaders.map(leader => {
-          const shortUUID = leader.playerUUID.substring(0, 3);
-          const uniqueMarker = leader.usingUnique ? '*' : '';
-          return `${leader.name}${uniqueMarker}[${shortUUID}]`;
-        })
-      ];
+    try {
+      // Find existing elements in the container
+      const [bg, nameText, typeText, leadersText] = container.list;
 
-      // Add server-side pending placements
-      if (serverPendingPlacement) {
-        const leader = this.gameState.player.leaders.find(l => l.leaderId === serverPendingPlacement.leaderId);
-        if (leader) {
-          const shortUUID = this.playerUUID.substring(0, 3);
-          const uniqueMarker = serverPendingPlacement.useUnique ? '*' : '';
-          leaderStrings.push(`${leader.name}${uniqueMarker}[${shortUUID}] (Pending)`);
-        }
+      // Update text content based on revealed status
+      if (nameText && typeText) {
+        nameText.setText(caseData.isRevealed ? caseData.name : '???');
+        typeText.setText(caseData.type);
       }
 
-      // Add local pending placements
-      if (localPendingPlacement) {
-        const leader = this.gameState.player.leaders.find(l => l.leaderId === localPendingPlacement.leaderId);
-        if (leader) {
-          const shortUUID = this.playerUUID.substring(0, 3);
-          const uniqueMarker = localPendingPlacement.useUnique ? '*' : '';
-          leaderStrings.push(`${leader.name}${uniqueMarker}[${shortUUID}] (Pending*)`);
-        }
+      // Remove any existing exploration/claim/owner texts
+      while (container.list.length > 4) {
+        container.list[container.list.length - 1].destroy();
       }
 
-      leadersText.setText(leaderStrings.join('\n'));
-      leadersText.setVisible(true);
-    } else {
-      leadersText.setText('');
-      leadersText.setVisible(false);
+      let yOffset = -30;
+
+      if (caseData.owner) {
+        // Show owner if case is claimed
+        const ownerText = this.add.text(0, yOffset,
+          `${caseData.owner.slice(-3)}`,
+          { fontSize: '12px', fill: '#00ff00' }
+        ).setOrigin(0.5);
+        
+        container.add(ownerText);
+      } else if (!caseData.isRevealed) {
+        // Show exploration points for unrevealed cases
+        const explorationPointsText = Object.entries(caseData.explorationPoints || {})
+          .map(([uuid, points]) => `${points}[${uuid.slice(-3)}]`)
+          .join(' ');
+        
+        const explorationText = this.add.text(0, yOffset,
+          explorationPointsText,
+          { fontSize: '12px', fill: '#fff' }
+        ).setOrigin(0.5);
+        
+        container.add(explorationText);
+      } else {
+        // Show claim points for revealed but unclaimed cases
+        const claimPointsText = Object.entries(caseData.claimPoints || {})
+          .map(([uuid, points]) => `${points}[${uuid.slice(-3)}]`)
+          .join(' ');
+        
+        const claimText = this.add.text(0, yOffset,
+          claimPointsText,
+          { fontSize: '12px', fill: '#fff' }
+        ).setOrigin(0.5);
+
+        container.add(claimText);
+      }
+
+      // Update leaders text with both placed and pending leaders
+      if (leadersText) {
+        const currentLeaders = caseData.placedLeaders || [];
+        const serverPendingPlacement = this.gameState.player.turnActions.leaderPlacements.find(p => p.caseId === caseData.caseId);
+        const localPendingPlacement = this.pendingPlacements.find(p => p.caseId === caseData.caseId);
+        
+        if (currentLeaders.length > 0 || serverPendingPlacement || localPendingPlacement) {
+          const leaderStrings = [
+            ...currentLeaders.map(leader => {
+              const shortUUID = leader.playerUUID.substring(0, 3);
+              const uniqueMarker = leader.usingUnique ? '*' : '';
+              return `${leader.name}${uniqueMarker}[${shortUUID}]`;
+            })
+          ];
+
+          // Add server-side pending placements
+          if (serverPendingPlacement) {
+            const leader = this.gameState.player.leaders.find(l => l.leaderId === serverPendingPlacement.leaderId);
+            if (leader) {
+              const shortUUID = this.playerUUID.substring(0, 3);
+              const uniqueMarker = serverPendingPlacement.useUnique ? '*' : '';
+              leaderStrings.push(`${leader.name}${uniqueMarker}[${shortUUID}] (Pending)`);
+            }
+          }
+
+          // Add local pending placements
+          if (localPendingPlacement) {
+            const leader = this.gameState.player.leaders.find(l => l.leaderId === localPendingPlacement.leaderId);
+            if (leader) {
+              const shortUUID = this.playerUUID.substring(0, 3);
+              const uniqueMarker = localPendingPlacement.useUnique ? '*' : '';
+              leaderStrings.push(`${leader.name}${uniqueMarker}[${shortUUID}] (Pending*)`);
+            }
+          }
+
+          leadersText.setText(leaderStrings.join('\n'));
+          leadersText.setVisible(true);
+        } else {
+          leadersText.setText('');
+          leadersText.setVisible(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating case card:', error);
+      console.error('Case data:', caseData);
+      console.error('Container:', container);
     }
   }
 
@@ -599,75 +696,81 @@ export default class GameScene extends Phaser.Scene {
     const cardWidth = 180;
     const cardHeight = 240;
 
-    // Card background
-    const bg = this.add.rectangle(0, 0, cardWidth, cardHeight, 0x333333);
-    bg.setInteractive();
-    bg.on('pointerover', () => bg.setFillStyle(0x444444));
-    bg.on('pointerout', () => bg.setFillStyle(0x333333));
-    bg.on('pointerdown', () => this.handleCaseClick(caseData, container, index));
+    try {
+      // Card background
+      const bg = this.add.rectangle(0, 0, cardWidth, cardHeight, 0x333333);
+      bg.setInteractive();
+      bg.on('pointerover', () => bg.setFillStyle(0x444444));
+      bg.on('pointerout', () => bg.setFillStyle(0x333333));
+      bg.on('pointerdown', () => this.handleCaseClick(caseData, container, index));
 
-    // Case name - larger text, hidden if not revealed
-    const nameText = this.add.text(0, -90, caseData.isRevealed ? caseData.name : '???', {
-      fontSize: '18px',
-      fill: '#fff',
-      align: 'center',
-      wordWrap: { width: cardWidth - 20 }
-    }).setOrigin(0.5);
+      // Case name - larger text, hidden if not revealed
+      const nameText = this.add.text(0, -90, caseData.isRevealed ? caseData.name : '???', {
+        fontSize: '18px',
+        fill: '#fff',
+        align: 'center',
+        wordWrap: { width: cardWidth - 20 }
+      }).setOrigin(0.5);
 
-    // Case type - larger text
-    const typeText = this.add.text(0, -60, caseData.type, {
-      fontSize: '14px',
-      fill: '#aaa'
-    }).setOrigin(0.5);
+      // Case type - larger text
+      const typeText = this.add.text(0, -60, caseData.type, {
+        fontSize: '14px',
+        fill: '#aaa'
+      }).setOrigin(0.5);
 
-    // Leaders container text - larger text
-    const leadersText = this.add.text(0, 60, '', {
-      fontSize: '12px',
-      fill: '#fff',
-      align: 'center',
-      wordWrap: { width: cardWidth - 20 }
-    }).setOrigin(0.5);
+      // Leaders container text - larger text
+      const leadersText = this.add.text(0, 60, '', {
+        fontSize: '12px',
+        fill: '#fff',
+        align: 'center',
+        wordWrap: { width: cardWidth - 20 }
+      }).setOrigin(0.5);
 
-    container.add([bg, nameText, typeText, leadersText]);
+      container.add([bg, nameText, typeText, leadersText]);
 
-    // Update owner text position and size if case is claimed
-    let yOffset = -30;
+      // Update owner text position and size if case is claimed
+      let yOffset = -30;
 
-    if (caseData.owner) {
+      if (caseData.owner) {
         // Show owner if case is claimed
         const ownerText = this.add.text(0, yOffset,
-            `${caseData.owner.slice(-3)}`,
-            { fontSize: '14px', fill: '#00ff00' }
+          `${caseData.owner.slice(-3)}`,
+          { fontSize: '14px', fill: '#00ff00' }
         ).setOrigin(0.5);
         
-        container.add([ownerText]);
-    } else if (!caseData.isRevealed) {
+        container.add(ownerText);
+      } else if (!caseData.isRevealed) {
         // Show exploration points for unrevealed cases
         const explorationPointsText = Object.entries(caseData.explorationPoints || {})
-            .map(([uuid, points]) => `${points}[${uuid.slice(-3)}]`)
-            .join(' ');
+          .map(([uuid, points]) => `${points}[${uuid.slice(-3)}]`)
+          .join(' ');
         
         const explorationText = this.add.text(0, yOffset,
-            explorationPointsText,
-            { fontSize: '14px', fill: '#fff' }
+          explorationPointsText,
+          { fontSize: '14px', fill: '#fff' }
         ).setOrigin(0.5);
         
-        container.add([explorationText]);
-    } else {
+        container.add(explorationText);
+      } else {
         // Show claim points for revealed but unclaimed cases
         const claimPointsText = Object.entries(caseData.claimPoints || {})
-            .map(([uuid, points]) => `${points}[${uuid.slice(-3)}]`)
-            .join(' ');
+          .map(([uuid, points]) => `${points}[${uuid.slice(-3)}]`)
+          .join(' ');
         
         const claimText = this.add.text(0, yOffset,
-            claimPointsText,
-            { fontSize: '14px', fill: '#fff' }
+          claimPointsText,
+          { fontSize: '14px', fill: '#fff' }
         ).setOrigin(0.5);
 
-        container.add([claimText]);
-    }
+        container.add(claimText);
+      }
 
-    return container;
+      return container;
+    } catch (error) {
+      console.error('Error creating case card:', error);
+      console.error('Case data:', caseData);
+      return container;
+    }
   }
 
   async handleCaseClick(caseData, container, index) {
@@ -746,6 +849,9 @@ export default class GameScene extends Phaser.Scene {
       this.updateCasesDisplay();
 
       console.log('Successfully committed turn');
+      
+      // Schedule an immediate poll
+      this.schedulePoll(0);
     } catch (error) {
       console.error('Error committing turn:', error);
     }
@@ -944,6 +1050,140 @@ export default class GameScene extends Phaser.Scene {
       }
     } else {
       display.bg.setFillStyle(0x333333); // Default color
+    }
+  }
+
+  updateHistoryCasesDisplay() {
+    if (!this.gameState.historyCases) return;
+
+    // Only update if we're showing a historical era
+    if (this.currentVisibleEra === this.gameState.currentEra) {
+      this.historyCasesContainer.removeAll(true);
+      return;
+    }
+
+    const cardWidth = 180;
+    const padding = 30;
+    const screenWidth = this.sys.game.config.width;
+
+    // Track which cases are still in use
+    const activeCaseIds = new Set();
+
+    // Only show cases for the current visible era
+    if (this.currentVisibleEra && this.currentVisibleEra !== this.gameState.currentEra) {
+      const cases = this.gameState.historyCases[this.currentVisibleEra];
+      if (cases) {
+        // Calculate total width needed for all cards
+        const totalCardsWidth = cases.length * (cardWidth + padding) - padding;
+        
+        // Calculate starting X position to center the cards
+        let xOffset = (screenWidth - totalCardsWidth) / 2;
+
+        cases.forEach((caseData, index) => {
+          const caseId = caseData.caseId;
+          activeCaseIds.add(caseId);
+
+          const x = xOffset + index * (cardWidth + padding);
+          const y = 0; // All cases at same y-level
+
+          let caseContainer;
+          if (this.historyCasePool.has(caseId)) {
+            // Update existing case
+            caseContainer = this.historyCasePool.get(caseId);
+            this.updateCaseCard(caseContainer, caseData, index);
+            caseContainer.x = x;
+            caseContainer.y = y;
+          } else {
+            // Create new case if not in pool
+            caseContainer = this.createCaseCard(caseData, x, y, index);
+            this.historyCasePool.set(caseId, caseContainer);
+            this.historyCasesContainer.add(caseContainer);
+          }
+        });
+      }
+    }
+
+    // Remove cases that are no longer present
+    for (const [caseId, container] of this.historyCasePool.entries()) {
+      if (!activeCaseIds.has(caseId)) {
+        container.destroy();
+        this.historyCasePool.delete(caseId);
+      }
+    }
+
+    // Reset container position to 0 since we're calculating absolute positions
+    this.historyCasesContainer.x = 0;
+  }
+
+  navigateEra(direction) {
+    if (!this.gameState) return;
+
+    const allEras = [
+      ...Object.keys(this.gameState.historyCases || {}).map(Number),
+      this.gameState.currentEra
+    ].sort((a, b) => a - b);
+
+    const currentIndex = allEras.indexOf(this.currentVisibleEra);
+    let newIndex;
+
+    if (direction === 'prev' && currentIndex > 0) {
+      newIndex = currentIndex - 1;
+    } else if (direction === 'next' && currentIndex < allEras.length - 1) {
+      newIndex = currentIndex + 1;
+    } else {
+      return;
+    }
+
+    this.showEra(allEras[newIndex]);
+  }
+
+  showEra(era) {
+    if (!this.gameState) return;
+
+    // Hide all containers initially
+    this.historyCasesContainer.setVisible(false);
+    this.casesContainer.setVisible(false);
+
+    // Clear the inactive container
+    if (era === this.gameState.currentEra) {
+      this.historyCasesContainer.removeAll(true);
+      this.historyCasePool.clear();
+      
+      // Show current era cases
+      this.casesContainer.setVisible(true);
+      this.dragTarget = this.casesContainer;
+      // Center the cases initially
+      this.casesContainer.x = 0;
+      this.eraLabel.setText(`Current Era (${era})`);
+    } else {
+      this.casesContainer.removeAll(true);
+      this.currentCasePool.clear();
+      
+      // Show historical era cases
+      this.historyCasesContainer.setVisible(true);
+      this.dragTarget = this.historyCasesContainer;
+      // Center the cases initially
+      this.historyCasesContainer.x = 0;
+      this.eraLabel.setText(`Era ${era}`);
+    }
+
+    // Update navigation buttons
+    const allEras = [
+      ...Object.keys(this.gameState.historyCases || {}).map(Number),
+      this.gameState.currentEra
+    ].sort((a, b) => a - b);
+
+    const currentIndex = allEras.indexOf(era);
+    this.prevEraButton.setVisible(currentIndex > 0);
+    this.nextEraButton.setVisible(currentIndex < allEras.length - 1);
+
+    this.currentVisibleEra = era;
+    
+    // Update the appropriate display
+    if (era === this.gameState.currentEra) {
+      this.updateCasesDisplay();
+    } else {
+      this.updateHistoryCasesDisplay();
     }
   }
 
