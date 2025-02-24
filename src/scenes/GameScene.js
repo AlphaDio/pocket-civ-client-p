@@ -14,6 +14,8 @@ export default class GameScene extends Phaser.Scene {
     this.selectedLeader = null; // Track currently selected leader
     this.selectedLeaderUnique = false; // Track if unique ability is selected
     this.pendingPlacements = []; // Track local leader placements before commit
+    this.shouldInitialize = true;
+    this.pollTimer = null; // Track polling timer
     console.log('GameScene: Initialized');
   }
 
@@ -25,8 +27,10 @@ export default class GameScene extends Phaser.Scene {
     if (!this.gameId || !this.playerUUID) {
       console.warn('GameScene: Missing gameId or playerUUID, returning to menu');
       this.scene.start('MenuScene');
+      this.shouldInitialize = false;
       return;
     }
+    this.shouldInitialize = true;
   }
 
   preload() {
@@ -36,6 +40,9 @@ export default class GameScene extends Phaser.Scene {
   }
 
   create() {
+    if (!this.shouldInitialize) {
+      return;
+    }
     console.log('GameScene: Creating game UI elements');
     this.createUI();
     
@@ -203,13 +210,13 @@ export default class GameScene extends Phaser.Scene {
       this.updateGameState(gameState);
 
       console.log('GameScene: Scheduling next poll in 5 seconds');
-      this.time.delayedCall(5000, () => this.pollGameState());
+      this.pollTimer = this.time.delayedCall(5000, () => this.pollGameState());
     } catch (error) {
       console.error('GameScene: Error polling game state:', error);
       this.statusText.setText('Error: Failed to fetch game state');
       
       console.log('GameScene: Retrying poll in 10 seconds due to error');
-      this.time.delayedCall(10000, () => this.pollGameState());
+      this.pollTimer = this.time.delayedCall(10000, () => this.pollGameState());
     }
   }
 
@@ -942,5 +949,14 @@ export default class GameScene extends Phaser.Scene {
 
   update() {
     // Game logic updates
+  }
+
+  shutdown() {
+    console.log('GameScene: Shutting down');
+    if (this.pollTimer) {
+      this.pollTimer.remove();
+      this.pollTimer = null;
+    }
+    this.shouldInitialize = false;
   }
 }
