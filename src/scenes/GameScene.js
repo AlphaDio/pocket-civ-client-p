@@ -577,9 +577,6 @@ export default class GameScene extends Phaser.Scene {
         this.currentCasePool.delete(caseId);
       }
     }
-
-    // Reset container position to 0 since we're calculating absolute positions
-    this.casesContainer.x = 0;
   }
 
   updateCaseCard(container, caseData, index) {
@@ -774,6 +771,11 @@ export default class GameScene extends Phaser.Scene {
   }
 
   async handleCaseClick(caseData, container, index) {
+    // Only allow leader placement if we're viewing the current era
+    if (this.currentVisibleEra !== this.gameState.currentEra) {
+      return;
+    }
+
     if (this.selectedLeader) {
       const leader = this.gameState.player.leaders.find(l => l.leaderId === this.selectedLeader);
       if (leader) {
@@ -1110,9 +1112,6 @@ export default class GameScene extends Phaser.Scene {
         this.historyCasePool.delete(caseId);
       }
     }
-
-    // Reset container position to 0 since we're calculating absolute positions
-    this.historyCasesContainer.x = 0;
   }
 
   navigateEra(direction) {
@@ -1184,6 +1183,13 @@ export default class GameScene extends Phaser.Scene {
       this.updateCasesDisplay();
     } else {
       this.updateHistoryCasesDisplay();
+    }
+
+    // Center the view after updating the display
+    if (era === this.gameState.currentEra) {
+      this.casesContainer.x = 0;
+    } else {
+      this.historyCasesContainer.x = 0;
     }
   }
 
