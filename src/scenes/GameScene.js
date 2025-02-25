@@ -1509,7 +1509,7 @@ export default class GameScene extends Phaser.Scene {
     // Only show upgrade information if the case has an upgrade effect and is revealed
     if (
       this.currentVisibleEra !== this.gameState.currentEra &&
-      this.isUpgradeable(caseData) &&
+      (this.isUpgradeable(caseData) || caseData.isUpgraded) &&
       caseData.isRevealed &&
       caseData.owner
     ) {
@@ -1517,12 +1517,12 @@ export default class GameScene extends Phaser.Scene {
       if (caseData.upgradeEffect1) {
         const upgradeEffect = this.add.text(
           -180 / 2 + 10,
-          240 / 2 - 40,
+          240 / 2 - 50,
           `Effect: ${caseData.upgradeEffect1}`,
           {
             fontSize: "12px",
             wordWrap: { width: 180 - 20 },
-            fill: "#DAA520",
+            fill: caseData.isUpgraded ? "#666666" : "#DAA520",
           }
         );
         container.add(upgradeEffect);
@@ -1536,24 +1536,24 @@ export default class GameScene extends Phaser.Scene {
         }
         const upgradeCost = this.add.text(
           -180 / 2 + 10,
-          240 / 2 - 20,
+          240 / 2 - 70,
           costText,
           {
             fontSize: "12px",
-            fill: "#DAA520",
+            fill: caseData.isUpgraded ? "#666666" : "#DAA520",
           }
         );
         container.add(upgradeCost);
       }
 
-      // Show "Upgradeable" text
+      // Show "Upgradeable" or "Upgraded" text
       const upgradeText = this.add.text(
         -180 / 2 + 10,
-        240 / 2 - 60,
-        "Upgradeable",
+        240 / 2 - 80,
+        caseData.isUpgraded ? "Upgraded" : "Upgradeable",
         {
           fontSize: "14px",
-          fill: "#DAA520",
+          fill: caseData.isUpgraded ? "#666666" : "#DAA520",
           fontStyle: "bold",
         }
       );
