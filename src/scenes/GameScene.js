@@ -1135,10 +1135,7 @@ export default class GameScene extends Phaser.Scene {
     // Calculate total height needed
     const leaderHeight = 60; // Reduced height
     const padding = 5; // Reduced padding
-    const totalHeight = Math.max(
-      100,
-      leaders.length * leaderHeight + padding * 2
-    );
+    const totalHeight = Math.max(100, leaders.length * leaderHeight + padding * 2);
 
     // Start from the bottom
     let yOffset = totalHeight - padding - leaderHeight;
@@ -1148,36 +1145,32 @@ export default class GameScene extends Phaser.Scene {
       activeLeaderIds.add(leaderId);
 
       // Find if this leader has a pending placement
-      const pendingPlacement =
-        this.gameState.player.turnActions.leaderPlacements.find(
-          (p) => p.leaderId === leaderId
-        );
+      const pendingPlacement = this.gameState.player.turnActions.leaderPlacements.find(
+        (p) => p.leaderId === leaderId
+      );
 
       let display;
       if (this.leaderPool.has(leaderId)) {
         // Update existing leader display
         display = this.leaderPool.get(leaderId);
 
-        // Update text content
+        // Update text content with both ranges
         display.nameText.setText(
-          `${leader.name} (Range: ${leader.range.value} ${leader.range.direction})`
+          `${leader.name} (R1: ${leader.range1.value} ${leader.range1.direction}, R2: ${leader.range2.value} ${leader.range2.direction})`
         );
+        
+        // Show both range knowledge types
         display.knowledgeText.setText(
-          leader.knowledgeTypes
-            .map((k) => `${k.type.substring(0, 3)}: ${k.amount}`)
-            .join(" | ")
+          `R1: ${leader.range1.knowledge.type.substring(0, 3)}: ${leader.range1.knowledge.amount} | ` +
+          `R2: ${leader.range2.knowledge.type.substring(0, 3)}: ${leader.range2.knowledge.amount}`
         );
 
         // Update unique ability text and add case position if placed
-        let uniqueAbilityText = `${leader.uniqueAbility.name} (${
-          leader.uniqueAbility.usedThisEra ? "Used" : "Available"
-        })`;
+        let uniqueAbilityText = `${leader.uniqueAbility.name} (${leader.uniqueAbility.usedThisEra ? "Used" : "Available"})`;
         if (pendingPlacement) {
-          // Find case position by matching caseId
-          const casePosition =
-            this.gameState.currentCases.findIndex(
-              (c) => c.caseId === pendingPlacement.caseId
-            ) + 1;
+          const casePosition = this.gameState.currentCases.findIndex(
+            (c) => c.caseId === pendingPlacement.caseId
+          ) + 1;
           if (casePosition > 0) {
             uniqueAbilityText += ` | Case: #${casePosition}`;
           }
@@ -1202,13 +1195,16 @@ export default class GameScene extends Phaser.Scene {
         const bg = this.add.rectangle(0, 0, 290, leaderHeight - 10, 0x333333);
         bg.setInteractive();
 
-        // Create new leader display objects
-        const nameText = this.add.text(10, 0, "", {
+        // Create new leader display objects with updated range information
+        const nameText = this.add.text(10, 0, 
+          `${leader.name} (R1: ${leader.range1.value} ${leader.range1.direction}, R2: ${leader.range2.value} ${leader.range2.direction})`, {
           fontSize: "14px",
           fill: "#fff",
         });
 
-        const knowledgeText = this.add.text(10, 20, "", {
+        const knowledgeText = this.add.text(10, 20, 
+          `R1: ${leader.range1.knowledge.type.substring(0, 3)}: ${leader.range1.knowledge.amount} | ` +
+          `R2: ${leader.range2.knowledge.type.substring(0, 3)}: ${leader.range2.knowledge.amount}`, {
           fontSize: "12px",
           fill: "#aaa",
         });
@@ -1225,26 +1221,12 @@ export default class GameScene extends Phaser.Scene {
         display = { bg, nameText, knowledgeText, uniqueText };
         this.leaderPool.set(leaderId, display);
 
-        // Set initial content
-        display.nameText.setText(
-          `${leader.name} (Range: ${leader.range.value} ${leader.range.direction})`
-        );
-        display.knowledgeText.setText(
-          leader.knowledgeTypes
-            .map((k) => `${k.type.substring(0, 3)}: ${k.amount}`)
-            .join(" | ")
-        );
-
         // Set initial unique ability text with case position if placed
-        let initialUniqueText = `${leader.uniqueAbility.name} (${
-          leader.uniqueAbility.usedThisEra ? "Used" : "Available"
-        })`;
+        let initialUniqueText = `${leader.uniqueAbility.name} (${leader.uniqueAbility.usedThisEra ? "Used" : "Available"})`;
         if (pendingPlacement) {
-          // Find case position by matching caseId
-          const casePosition =
-            this.gameState.currentCases.findIndex(
-              (c) => c.caseId === pendingPlacement.caseId
-            ) + 1;
+          const casePosition = this.gameState.currentCases.findIndex(
+            (c) => c.caseId === pendingPlacement.caseId
+          ) + 1;
           if (casePosition > 0) {
             initialUniqueText += ` | Case: #${casePosition}`;
           }
