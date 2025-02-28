@@ -1,16 +1,6 @@
 import Phaser from "phaser";
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-const CARD_WIDTH = 180;
-const CARD_HEIGHT = 300;
-const LEADER_CONTAINER_WIDTH = 300;
-
-// Display modes for case cards
-const DISPLAY_MODE = {
-  DEFAULT: 'default',      // Show claim effects, rewards, and upgrade information
-  UPGRADE: 'upgrade',      // Show upgrade information
-  LEADERS: 'leaders'       // Show leader placements
-};
+// Import constants from the new file
+import { BACKEND_URL, CARD_WIDTH, CARD_HEIGHT, LEADER_CONTAINER_WIDTH, DISPLAY_MODE } from './utils/constants';
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
