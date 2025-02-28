@@ -1,6 +1,16 @@
 import Phaser from "phaser";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+const CARD_WIDTH = 180;
+const CARD_HEIGHT = 300;
+const LEADER_CONTAINER_WIDTH = 300;
+
+// Display modes for case cards
+const DISPLAY_MODE = {
+  DEFAULT: 'default',      // Show claim effects and rewards
+  UPGRADE: 'upgrade',      // Show upgrade information
+  LEADERS: 'leaders'       // Show leader placements
+};
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -19,6 +29,8 @@ export default class GameScene extends Phaser.Scene {
     this.pollTimer = null; // Track polling timer
     this.isPollingPaused = false; // Track if polling is paused
     this.selectedHistoryCase = null; // Track currently selected history case
+    this.showingUpgradeInfo = null; // Track which case is currently showing upgrade info
+    this.caseDisplayModes = new Map(); // Track display mode for each case
     console.log("GameScene: Initialized");
   }
 
@@ -52,6 +64,14 @@ export default class GameScene extends Phaser.Scene {
     }
     console.log("GameScene: Creating game UI elements");
     this.createUI();
+
+    // Add click handler to clear display modes when clicking elsewhere
+    this.input.on('pointerdown', (pointer) => {
+      // Check if the click is outside any case
+      if (pointer.y < 100 || pointer.y > 500) { // Adjust these values based on your layout
+        this.clearUpgradeInfoDisplay();
+      }
+    });
 
     console.log("GameScene: Starting game state polling");
     this.pollGameState();
@@ -152,7 +172,7 @@ export default class GameScene extends Phaser.Scene {
     const leadersBg = this.add.rectangle(
       0,
       0,
-      screenWidth - 20,
+      LEADER_CONTAINER_WIDTH,
       110,
       0x222222,
       0.5
@@ -606,13 +626,12 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    const cardWidth = 180;
     const padding = 30;
     const screenWidth = this.sys.game.config.width;
 
     // Calculate total width needed for all cards
     const totalCardsWidth =
-      this.gameState.currentCases.length * (cardWidth + padding) - padding;
+      this.gameState.currentCases.length * (CARD_WIDTH + padding) - padding;
 
     // Calculate starting X position to center the cards
     let xOffset = (screenWidth - totalCardsWidth) / 2;
@@ -625,7 +644,7 @@ export default class GameScene extends Phaser.Scene {
       const caseId = caseData.caseId;
       activeCaseIds.add(caseId);
 
-      const x = xOffset + index * (cardWidth + padding);
+      const x = xOffset + index * (CARD_WIDTH + padding);
       const y = 0;
 
       let caseContainer;
@@ -727,8 +746,60 @@ export default class GameScene extends Phaser.Scene {
         container.add(claimText);
       }
 
-      // Always add upgrade information if applicable
-      this.addUpgradeInformation(container, caseData);
+      // Check if this case has leaders placed on it
+      const hasLeaders = (caseData.placedLeaders && caseData.placedLeaders.length > 0) ||
+                         this.gameState.player.turnActions.leaderPlacements.some(p => p.caseId === caseData.caseId) ||
+                         this.pendingPlacements.some(p => p.caseId === caseData.caseId);
+
+      // Get the current display mode for this case
+      let displayMode = this.caseDisplayModes.get(caseData.caseId) || DISPLAY_MODE.DEFAULT;
+      
+      // If we're in the current era and this case has leaders, we need special handling
+      if (this.currentVisibleEra === this.gameState.currentEra && hasLeaders) {
+        // If we're in LEADERS mode but there are no leaders, switch to DEFAULT
+        if (displayMode === DISPLAY_MODE.LEADERS && !hasLeaders) {
+          displayMode = DISPLAY_MODE.DEFAULT;
+          this.caseDisplayModes.set(caseData.caseId, displayMode);
+        }
+        // If we're not in LEADERS mode but there are leaders, show them
+        else if (displayMode !== DISPLAY_MODE.LEADERS && hasLeaders) {
+          // Only show leaders if we're explicitly in LEADERS mode
+          if (leadersText) {
+            leadersText.setVisible(displayMode === DISPLAY_MODE.LEADERS);
+          }
+        }
+      }
+      
+      // Add information based on display mode
+      if (displayMode === DISPLAY_MODE.UPGRADE) {
+        // Show upgrade information
+        this.addUpgradeInformation(container, caseData);
+        // Hide leaders text when showing upgrade info
+        if (leadersText) {
+          leadersText.setVisible(false);
+        }
+      } else if (displayMode === DISPLAY_MODE.DEFAULT) {
+        // Show claim information for current era, upgrade info for history
+        if (this.currentVisibleEra === this.gameState.currentEra) {
+          this.addClaimInformation(container, caseData);
+          // Hide leaders text when showing claim info
+          if (leadersText) {
+            leadersText.setVisible(false);
+          }
+        } else {
+          // For history cases, show upgrade info by default
+          this.addUpgradeInformation(container, caseData);
+          // Hide leaders text when showing upgrade info
+          if (leadersText) {
+            leadersText.setVisible(false);
+          }
+        }
+      } else if (displayMode === DISPLAY_MODE.LEADERS) {
+        // Show leaders information
+        if (leadersText) {
+          leadersText.setVisible(true);
+        }
+      }
 
       // Check if this case is selected for upgrade
       const isSelectedForUpgrade = this.gameState.player.turnActions.upgrades?.some(
@@ -740,6 +811,9 @@ export default class GameScene extends Phaser.Scene {
         bg.setFillStyle(0x666666);
       } else if (this.selectedHistoryCase === caseData.caseId) {
         bg.setFillStyle(0x666666);
+      } else if (displayMode === DISPLAY_MODE.UPGRADE) {
+        // Highlight with a different color when in upgrade mode
+        bg.setFillStyle(0x555555);
       } else {
         bg.setFillStyle(0x333333);
       }
@@ -797,11 +871,17 @@ export default class GameScene extends Phaser.Scene {
           }
 
           leadersText.setText(leaderStrings.join("\n"));
-          leadersText.setVisible(true);
+          // Only show leaders text if we're in LEADERS display mode
+          leadersText.setVisible(displayMode === DISPLAY_MODE.LEADERS);
         } else {
           leadersText.setText("");
           leadersText.setVisible(false);
         }
+      }
+      
+      // Always add the upgrade symbol for upgradeable cases, regardless of display mode
+      if (this.isUpgradeable(caseData)) {
+        this.addUpgradeSymbol(container, caseData);
       }
     } catch (error) {
       console.error("Error updating case card:", error);
@@ -811,9 +891,11 @@ export default class GameScene extends Phaser.Scene {
   }
 
   isUpgradeable(caseData) {
-    // Check if the case has not been upgraded and has an upgrade effect
+    // Check if the case has not been upgraded, has an upgrade effect, and is owned by the player
     return (
       !caseData.isUpgraded &&
+      caseData.isRevealed &&
+      caseData.owner === this.playerUUID &&
       (caseData.upgradeEffect1 || caseData.upgradeEffect2)
     );
   }
@@ -824,16 +906,12 @@ export default class GameScene extends Phaser.Scene {
     );
     const container = this.add.container(x, y);
 
-    // Larger card size
-    const cardWidth = 180;
-    const cardHeight = 300; // 240
-
     try {
       // Card background
-      const bg = this.add.rectangle(0, 0, cardWidth, cardHeight, 0x333333);
+      const bg = this.add.rectangle(0, 0, CARD_WIDTH, CARD_HEIGHT, 0x333333);
       bg.setInteractive();
       bg.on("pointerover", () => {
-        // Highlight on hover for both current era cases and upgradeable history cases
+        // Highlight on hover for current era cases and upgradeable cases
         if (
           this.currentVisibleEra === this.gameState.currentEra ||
           (this.currentVisibleEra !== this.gameState.currentEra && this.isUpgradeable(caseData))
@@ -855,9 +933,65 @@ export default class GameScene extends Phaser.Scene {
         }
       });
       bg.on("pointerdown", () => {
+        // Check if this case has leaders placed on it
+        const hasLeaders = (caseData.placedLeaders && caseData.placedLeaders.length > 0) ||
+                           this.gameState.player.turnActions.leaderPlacements.some(p => p.caseId === caseData.caseId) ||
+                           this.pendingPlacements.some(p => p.caseId === caseData.caseId);
+        
+        // Get current display mode
+        const currentMode = this.caseDisplayModes.get(caseData.caseId) || DISPLAY_MODE.DEFAULT;
+        
+        // Handle click based on current era and case state
         if (this.currentVisibleEra === this.gameState.currentEra) {
+          // In current era
+          
+          // If case has leaders and is upgradeable, cycle through display modes
+          if (hasLeaders && this.isUpgradeable(caseData)) {
+            let newMode;
+            
+            // Cycle through modes: DEFAULT -> UPGRADE -> LEADERS -> DEFAULT
+            if (currentMode === DISPLAY_MODE.DEFAULT) {
+              newMode = DISPLAY_MODE.UPGRADE;
+            } else if (currentMode === DISPLAY_MODE.UPGRADE) {
+              newMode = DISPLAY_MODE.LEADERS;
+            } else {
+              newMode = DISPLAY_MODE.DEFAULT;
+            }
+            
+            // Update display mode and refresh card
+            this.caseDisplayModes.set(caseData.caseId, newMode);
+            this.updateCaseCard(container, caseData, index);
+            
+            // Also handle upgrade selection if we're in UPGRADE mode
+            if (newMode === DISPLAY_MODE.UPGRADE) {
+              this.handleUpgradeSelection(caseData);
+            }
+            return;
+          }
+          // If case has leaders but is not upgradeable, toggle between DEFAULT and LEADERS
+          else if (hasLeaders) {
+            const newMode = currentMode === DISPLAY_MODE.DEFAULT ? DISPLAY_MODE.LEADERS : DISPLAY_MODE.DEFAULT;
+            this.caseDisplayModes.set(caseData.caseId, newMode);
+            this.updateCaseCard(container, caseData, index);
+            return;
+          }
+          // If case is upgradeable but has no leaders, toggle between DEFAULT and UPGRADE
+          else if (this.isUpgradeable(caseData)) {
+            const newMode = currentMode === DISPLAY_MODE.DEFAULT ? DISPLAY_MODE.UPGRADE : DISPLAY_MODE.DEFAULT;
+            this.caseDisplayModes.set(caseData.caseId, newMode);
+            this.updateCaseCard(container, caseData, index);
+            
+            // Also handle upgrade selection if we're in UPGRADE mode
+            if (newMode === DISPLAY_MODE.UPGRADE) {
+              this.handleUpgradeSelection(caseData);
+            }
+            return;
+          }
+          
+          // Handle normal case click (leader placement, etc.)
           this.handleCaseClick(caseData, container, index);
         } else if (this.isUpgradeable(caseData)) {
+          // In history era, handle upgrade selection
           this.handleHistoryCaseClick(caseData, bg);
         }
       });
@@ -868,7 +1002,7 @@ export default class GameScene extends Phaser.Scene {
           fontSize: "18px",
           fill: "#fff",
           align: "center",
-          wordWrap: { width: cardWidth - 20 },
+          wordWrap: { width: CARD_WIDTH - 20 },
         })
         .setOrigin(0.5);
 
@@ -886,7 +1020,7 @@ export default class GameScene extends Phaser.Scene {
           fontSize: "12px",
           fill: "#fff",
           align: "center",
-          wordWrap: { width: cardWidth - 20 },
+          wordWrap: { width: CARD_WIDTH - 20 },
         })
         .setOrigin(0.5);
 
@@ -934,8 +1068,37 @@ export default class GameScene extends Phaser.Scene {
         container.add(claimText);
       }
 
-      // Add upgrade information if applicable
-      this.addUpgradeInformation(container, caseData);
+      // Check if this case has leaders placed on it
+      const hasLeaders = (caseData.placedLeaders && caseData.placedLeaders.length > 0) ||
+                         this.gameState.player.turnActions.leaderPlacements.some(p => p.caseId === caseData.caseId) ||
+                         this.pendingPlacements.some(p => p.caseId === caseData.caseId);
+
+      // Set initial display mode
+      let initialMode = DISPLAY_MODE.DEFAULT;
+      
+      // For history cases, always start with upgrade info
+      if (this.currentVisibleEra !== this.gameState.currentEra) {
+        initialMode = DISPLAY_MODE.DEFAULT; // For history cases, DEFAULT shows upgrade info
+      }
+      
+      // Store the initial display mode
+      this.caseDisplayModes.set(caseData.caseId, initialMode);
+      
+      // Add information based on display mode
+      if (initialMode === DISPLAY_MODE.DEFAULT) {
+        if (this.currentVisibleEra === this.gameState.currentEra) {
+          // Show claim information for current era
+          this.addClaimInformation(container, caseData);
+        } else {
+          // Show upgrade information for history era
+          this.addUpgradeInformation(container, caseData);
+        }
+      }
+      
+      // Always add the upgrade symbol for upgradeable cases, regardless of display mode
+      if (this.isUpgradeable(caseData)) {
+        this.addUpgradeSymbol(container, caseData);
+      }
 
       return container;
     } catch (error) {
@@ -946,6 +1109,11 @@ export default class GameScene extends Phaser.Scene {
   }
 
   handleHistoryCaseClick(caseData, bg) {
+    // Only allow upgrading cases that are owned by the player
+    if (!this.isUpgradeable(caseData)) {
+      return;
+    }
+    
     // Ensure turnActions.upgrades exists
     if (!this.gameState.player.turnActions.upgrades) {
       this.gameState.player.turnActions.upgrades = [];
@@ -1024,49 +1192,33 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    // Check if this is an upgradeable case and handle upgrade selection
-    if (this.isUpgradeable(caseData) && caseData.isRevealed && caseData.owner) {
-      // Ensure turnActions.upgrades exists
-      if (!this.gameState.player.turnActions.upgrades) {
-        this.gameState.player.turnActions.upgrades = [];
-      }
-
-      // Check if this case is already selected for upgrade
-      const isAlreadySelected = this.gameState.player.turnActions.upgrades.some(
-        (u) => u.caseId === caseData.caseId
-      );
-
-      if (isAlreadySelected) {
-        // Deselect the case
-        // Remove this case from pending upgrades
-        this.gameState.player.turnActions.upgrades =
-          this.gameState.player.turnActions.upgrades.filter(
-            (u) => u.caseId !== caseData.caseId
-          );
-      } else {
-        // Add this case to pending upgrades if not already present
-        if (
-          !this.gameState.player.turnActions.upgrades.find(
-            (u) => u.caseId === caseData.caseId
-          )
-        ) {
-          this.gameState.player.turnActions.upgrades.push({
-            caseId: caseData.caseId,
-          });
+    // Reset display mode for other cases when clicking on a different case
+    for (const [caseId, mode] of this.caseDisplayModes.entries()) {
+      if (caseId !== caseData.caseId && mode !== DISPLAY_MODE.DEFAULT) {
+        this.caseDisplayModes.set(caseId, DISPLAY_MODE.DEFAULT);
+        
+        // Update the display for the case that was reset
+        const resetCase = this.gameState.currentCases.find(c => c.caseId === caseId);
+        if (resetCase) {
+          const resetContainer = this.currentCasePool.get(caseId);
+          if (resetContainer) {
+            const resetIndex = this.gameState.currentCases.findIndex(c => c.caseId === caseId);
+            this.updateCaseCard(resetContainer, resetCase, resetIndex);
+          }
         }
       }
+    }
 
-      // Update selected upgrades text
-      this.updateSelectedUpgradesText();
-
-      // Show commit button if we have any upgrades to process
-      this.commitTurnButton.visible =
-        this.gameState.player.turnActions.upgrades.length > 0 || 
-        this.pendingPlacements.length > 0;
-        
-      // Update the display to reflect selection
-      this.updateCasesDisplay();
-      return;
+    // Check if this is an upgradeable case and handle upgrade selection
+    if (this.isUpgradeable(caseData)) {
+      // Get current display mode
+      const currentMode = this.caseDisplayModes.get(caseData.caseId) || DISPLAY_MODE.DEFAULT;
+      
+      // If we're in UPGRADE mode, handle the upgrade selection
+      if (currentMode === DISPLAY_MODE.UPGRADE) {
+        this.handleUpgradeSelection(caseData);
+        return;
+      }
     }
 
     if (this.selectedLeader) {
@@ -1099,6 +1251,9 @@ export default class GameScene extends Phaser.Scene {
           this.updateLeaderSelection(display, leader, leader.leaderId);
         }
 
+        // Set display mode to LEADERS to show the placement
+        this.caseDisplayModes.set(caseData.caseId, DISPLAY_MODE.LEADERS);
+        
         // Update the display to show pending placement
         this.updateCasesDisplay();
 
@@ -1179,7 +1334,7 @@ export default class GameScene extends Phaser.Scene {
         display.uniqueText.visible = false;
         display.bg.visible = false;
       }
-      this.leadersBg.setSize(300, 100);
+      this.leadersBg.setSize(LEADER_CONTAINER_WIDTH, 100);
       return;
     }
 
@@ -1243,7 +1398,7 @@ export default class GameScene extends Phaser.Scene {
         display.uniqueText.setStyle({ fontSize: "10px" });
       } else {
         // Create background for the leader
-        const bg = this.add.rectangle(0, 0, 290, leaderHeight - 10, 0x333333);
+        const bg = this.add.rectangle(0, 0, LEADER_CONTAINER_WIDTH, leaderHeight - 10, 0x333333);
         bg.setInteractive();
 
         // Create new leader display objects with updated range information
@@ -1305,7 +1460,7 @@ export default class GameScene extends Phaser.Scene {
       }
 
       // Update positions
-      display.bg.setPosition(155, yOffset + (leaderHeight - 10) / 2);
+      display.bg.setPosition(LEADER_CONTAINER_WIDTH / 2, yOffset + (leaderHeight - 10) / 2);
       display.nameText.setPosition(10, yOffset);
       display.knowledgeText.setPosition(10, yOffset + 20);
       display.uniqueText.setPosition(10, yOffset + 40);
@@ -1324,7 +1479,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     // Update background size to fit all leaders
-    this.leadersBg.setSize(300, totalHeight);
+    this.leadersBg.setSize(LEADER_CONTAINER_WIDTH, totalHeight);
 
     // Show commit turn button if we have any turn actions
     this.commitTurnButton.visible =
@@ -1391,7 +1546,6 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    const cardWidth = 180;
     const padding = 30;
     const screenWidth = this.sys.game.config.width;
 
@@ -1406,7 +1560,7 @@ export default class GameScene extends Phaser.Scene {
       const cases = this.gameState.historyCases[this.currentVisibleEra];
       if (cases) {
         // Calculate total width needed for all cards
-        const totalCardsWidth = cases.length * (cardWidth + padding) - padding;
+        const totalCardsWidth = cases.length * (CARD_WIDTH + padding) - padding;
 
         // Calculate starting X position to center the cards
         let xOffset = (screenWidth - totalCardsWidth) / 2;
@@ -1415,7 +1569,7 @@ export default class GameScene extends Phaser.Scene {
           const caseId = caseData.caseId;
           activeCaseIds.add(caseId);
 
-          const x = xOffset + index * (cardWidth + padding);
+          const x = xOffset + index * (CARD_WIDTH + padding);
           const y = 0; // All cases at same y-level
 
           let caseContainer;
@@ -1468,6 +1622,9 @@ export default class GameScene extends Phaser.Scene {
 
   showEra(era) {
     if (!this.gameState) return;
+
+    // Clear all display modes when changing eras
+    this.caseDisplayModes.clear();
 
     // Store the current upgrades before switching eras
     const currentUpgrades = this.gameState.player.turnActions.upgrades || [];
@@ -1539,21 +1696,25 @@ export default class GameScene extends Phaser.Scene {
 
   // New method to handle upgrade information display
   addUpgradeInformation(container, caseData) {
-    // Only show upgrade information if the case has an upgrade effect and is revealed
+    // Show upgrade information if the case has an upgrade effect and is revealed
     if (
-      (caseData.isRevealed && caseData.owner) &&
-      (this.isUpgradeable(caseData) || caseData.isUpgraded) 
+      caseData.isRevealed &&
+      (caseData.upgradeEffect1 || caseData.upgradeEffect2)
     ) {
+      // Determine text color based on whether this is a history case or current era case
+      const isHistoryCase = this.currentVisibleEra !== this.gameState.currentEra;
+      const textColor = isHistoryCase ? "#DAA520" : "#fff"; // Gold for history, white for current
+
       // Show upgrade effect
       if (caseData.upgradeEffect1) {
         const upgradeEffect = this.add.text(
-          -180 / 2 + 10,
-          240 / 2 - 50,
+          -CARD_WIDTH / 2 + 10,
+          CARD_HEIGHT / 2 - 80, // Adjusted for CARD_HEIGHT
           `Effect: ${caseData.upgradeEffect1}`,
           {
             fontSize: "12px",
-            wordWrap: { width: 180 - 20 },
-            fill: caseData.isUpgraded ? "#666666" : "#DAA520",
+            wordWrap: { width: CARD_WIDTH - 20 },
+            fill: textColor,
           }
         );
         container.add(upgradeEffect);
@@ -1566,12 +1727,12 @@ export default class GameScene extends Phaser.Scene {
           costText += `, ${caseData.upgradeCost2Amount} ${caseData.upgradeCost2Type}`;
         }
         const upgradeCost = this.add.text(
-          -180 / 2 + 10,
-          240 / 2 - 70,
+          -CARD_WIDTH / 2 + 10,
+          CARD_HEIGHT / 2 - 100, // Adjusted for CARD_HEIGHT
           costText,
           {
             fontSize: "12px",
-            fill: caseData.isUpgraded ? "#666666" : "#DAA520",
+            fill: textColor,
           }
         );
         container.add(upgradeCost);
@@ -1579,16 +1740,217 @@ export default class GameScene extends Phaser.Scene {
 
       // Show "Upgrade" text (simplified from "Upgradeable"/"Upgraded")
       const upgradeText = this.add.text(
-        -180 / 2 + 10,
-        240 / 2 - 80,
-        caseData.isUpgraded ? "Upgraded" : "Upgrade",
+        -CARD_WIDTH / 2 + 10,
+        CARD_HEIGHT / 2 - 120, // Adjusted for CARD_HEIGHT
+        "Upgrade", // Always just "Upgrade"
         {
           fontSize: "14px",
-          fill: caseData.isUpgraded ? "#666666" : "#DAA520",
+          fill: textColor,
           fontStyle: "bold",
         }
       );
       container.add(upgradeText);
     }
+  }
+
+  // Update method to clear case display modes when clicking elsewhere
+  clearUpgradeInfoDisplay() {
+    // Reset all case display modes to DEFAULT
+    const modifiedCaseIds = [];
+    
+    for (const [caseId, mode] of this.caseDisplayModes.entries()) {
+      if (mode !== DISPLAY_MODE.DEFAULT) {
+        this.caseDisplayModes.set(caseId, DISPLAY_MODE.DEFAULT);
+        modifiedCaseIds.push(caseId);
+      }
+    }
+    
+    // Update all cases that had their display mode reset
+    if (this.currentVisibleEra === this.gameState.currentEra) {
+      // Update current era cases
+      for (const caseId of modifiedCaseIds) {
+        const caseData = this.gameState.currentCases.find(c => c.caseId === caseId);
+        if (caseData) {
+          const container = this.currentCasePool.get(caseId);
+          if (container) {
+            const index = this.gameState.currentCases.findIndex(c => c.caseId === caseId);
+            this.updateCaseCard(container, caseData, index);
+          }
+        }
+      }
+    } else {
+      // Update history cases
+      const historyCases = this.gameState.historyCases[this.currentVisibleEra] || [];
+      for (const caseId of modifiedCaseIds) {
+        const caseData = historyCases.find(c => c.caseId === caseId);
+        if (caseData) {
+          const container = this.historyCasePool.get(caseId);
+          if (container) {
+            const index = historyCases.findIndex(c => c.caseId === caseId);
+            this.updateCaseCard(container, caseData, index);
+          }
+        }
+      }
+    }
+  }
+
+  // New method to display claim effects and rewards
+  addClaimInformation(container, caseData) {
+    // Only show claim information for revealed cases in the current era
+    if (!caseData.isRevealed || this.currentVisibleEra !== this.gameState.currentEra) {
+      return;
+    }
+
+    // Show claim effects if available (use claimEffect1 from the backend)
+    if (caseData.claimEffect1) {
+      const claimEffect = this.add.text(
+        -CARD_WIDTH / 2 + 10,
+        CARD_HEIGHT / 2 - 80,
+        `Effect: ${caseData.claimEffect1}`,
+        {
+          fontSize: "12px",
+          wordWrap: { width: CARD_WIDTH - 20 },
+          fill: "#fff",
+        }
+      );
+      container.add(claimEffect);
+    }
+
+    // Show claim rewards if available (use claimRewardAmount1 and claimReward1Type from the backend)
+    if (caseData.claimRewardAmount1 && caseData.claimReward1Type) {
+      let rewardsText = "Rw: ";
+      
+      // Format primary reward
+      const resource1 = caseData.claimReward1Type.toLowerCase();
+      const amount1 = caseData.claimRewardAmount1;
+      
+      // Use abbreviations for resources
+      const abbr = {
+        'might': 'M',
+        'education': 'E',
+        'gold': 'G',
+        'faith': 'Fa',
+        'food': 'Fo',
+        'influence': 'I'
+      }[resource1] || resource1;
+      
+      rewardsText += `+${amount1} ${abbr}`;
+      
+      // Add secondary reward if available
+      if (caseData.claimRewardAmount2 && caseData.claimReward2Type) {
+        const resource2 = caseData.claimReward2Type.toLowerCase();
+        const amount2 = caseData.claimRewardAmount2;
+        const abbr2 = {
+          'might': 'M',
+          'education': 'E',
+          'gold': 'G',
+          'faith': 'Fa',
+          'food': 'Fo',
+          'influence': 'I'
+        }[resource2] || resource2;
+        
+        rewardsText += `, +${amount2} ${abbr2}`;
+      }
+      
+      const claimRewards = this.add.text(
+        -CARD_WIDTH / 2 + 10,
+        CARD_HEIGHT / 2 - 100,
+        rewardsText,
+        {
+          fontSize: "12px",
+          wordWrap: { width: CARD_WIDTH - 20 },
+          fill: "#fff",
+        }
+      );
+      container.add(claimRewards);
+    }
+
+    // Show "Claim" label
+    const claimLabel = this.add.text(
+      -CARD_WIDTH / 2 + 10,
+      CARD_HEIGHT / 2 - 120,
+      "Claim",
+      {
+        fontSize: "14px",
+        fill: "#fff",
+        fontStyle: "bold",
+      }
+    );
+    container.add(claimLabel);
+
+    // Always add the upgrade symbol for upgradeable cases
+    if (this.isUpgradeable(caseData)) {
+      this.addUpgradeSymbol(container, caseData);
+    }
+  }
+
+  // Add a method to add the upgrade symbol to any case card
+  addUpgradeSymbol(container, caseData) {
+    // Only add the symbol if the case is upgradeable
+    if (this.isUpgradeable(caseData)) {
+      // Check if the symbol already exists in the container
+      const existingSymbol = container.list.find(
+        item => item.type === 'Text' && item.text === 'ᴜ' && Math.abs(item.y - (CARD_HEIGHT / 2 - 10)) < 5
+      );
+      
+      // Only add if it doesn't already exist
+      if (!existingSymbol) {
+        const upgradeSymbol = this.add.text(
+          0,
+          CARD_HEIGHT / 2 - 10,
+          "ᴜ", // Small capital U
+          {
+            fontSize: "14px",
+            fill: "#DAA520", // Gold color
+            fontStyle: "bold",
+          }
+        ).setOrigin(0.5);
+        container.add(upgradeSymbol);
+      }
+    }
+  }
+
+  // Add a new helper method to handle upgrade selection
+  handleUpgradeSelection(caseData) {
+    // Ensure turnActions.upgrades exists
+    if (!this.gameState.player.turnActions.upgrades) {
+      this.gameState.player.turnActions.upgrades = [];
+    }
+
+    // Check if this case is already selected for upgrade
+    const isAlreadySelected = this.gameState.player.turnActions.upgrades.some(
+      (u) => u.caseId === caseData.caseId
+    );
+
+    if (isAlreadySelected) {
+      // Deselect the case
+      // Remove this case from pending upgrades
+      this.gameState.player.turnActions.upgrades =
+        this.gameState.player.turnActions.upgrades.filter(
+          (u) => u.caseId !== caseData.caseId
+        );
+    } else {
+      // Add this case to pending upgrades if not already present
+      if (
+        !this.gameState.player.turnActions.upgrades.find(
+          (u) => u.caseId === caseData.caseId
+        )
+      ) {
+        this.gameState.player.turnActions.upgrades.push({
+          caseId: caseData.caseId,
+        });
+      }
+    }
+
+    // Update selected upgrades text
+    this.updateSelectedUpgradesText();
+
+    // Show commit button if we have any upgrades to process
+    this.commitTurnButton.visible =
+      this.gameState.player.turnActions.upgrades.length > 0 || 
+      this.pendingPlacements.length > 0;
+    
+    // Update the display to reflect selection
+    this.updateCasesDisplay();
   }
 }
