@@ -736,7 +736,9 @@ export default class GameScene extends Phaser.Scene {
       );
 
       // Update background color based on selection state
-      if (isSelectedForUpgrade || this.selectedHistoryCase === caseData.caseId) {
+      if (isSelectedForUpgrade) {
+        bg.setFillStyle(0x666666);
+      } else if (this.selectedHistoryCase === caseData.caseId) {
         bg.setFillStyle(0x666666);
       } else {
         bg.setFillStyle(0x333333);
@@ -824,25 +826,29 @@ export default class GameScene extends Phaser.Scene {
 
     // Larger card size
     const cardWidth = 180;
-    const cardHeight = 240;
+    const cardHeight = 300; // 240
 
     try {
       // Card background
       const bg = this.add.rectangle(0, 0, cardWidth, cardHeight, 0x333333);
       bg.setInteractive();
       bg.on("pointerover", () => {
-        // Only highlight upgradeable history cases or normal current era cases
+        // Highlight on hover for both current era cases and upgradeable history cases
         if (
-          (this.currentVisibleEra !== this.gameState.currentEra &&
-            this.isUpgradeable(caseData)) ||
-          this.currentVisibleEra === this.gameState.currentEra
+          this.currentVisibleEra === this.gameState.currentEra ||
+          (this.currentVisibleEra !== this.gameState.currentEra && this.isUpgradeable(caseData))
         ) {
           bg.setFillStyle(0x444444);
         }
       });
       bg.on("pointerout", () => {
-        // Keep selected history case highlighted, otherwise return to normal
-        if (this.selectedHistoryCase === caseData.caseId) {
+        // Check if this case is selected for upgrade
+        const isSelectedForUpgrade = this.gameState.player.turnActions.upgrades?.some(
+          (u) => u.caseId === caseData.caseId
+        );
+        
+        // Keep selected cases highlighted, otherwise return to normal
+        if (isSelectedForUpgrade || this.selectedHistoryCase === caseData.caseId) {
           bg.setFillStyle(0x666666);
         } else {
           bg.setFillStyle(0x333333);
@@ -1015,6 +1021,51 @@ export default class GameScene extends Phaser.Scene {
   async handleCaseClick(caseData, container, index) {
     // Only allow leader placement if we're viewing the current era
     if (this.currentVisibleEra !== this.gameState.currentEra) {
+      return;
+    }
+
+    // Check if this is an upgradeable case and handle upgrade selection
+    if (this.isUpgradeable(caseData) && caseData.isRevealed && caseData.owner) {
+      // Ensure turnActions.upgrades exists
+      if (!this.gameState.player.turnActions.upgrades) {
+        this.gameState.player.turnActions.upgrades = [];
+      }
+
+      // Check if this case is already selected for upgrade
+      const isAlreadySelected = this.gameState.player.turnActions.upgrades.some(
+        (u) => u.caseId === caseData.caseId
+      );
+
+      if (isAlreadySelected) {
+        // Deselect the case
+        // Remove this case from pending upgrades
+        this.gameState.player.turnActions.upgrades =
+          this.gameState.player.turnActions.upgrades.filter(
+            (u) => u.caseId !== caseData.caseId
+          );
+      } else {
+        // Add this case to pending upgrades if not already present
+        if (
+          !this.gameState.player.turnActions.upgrades.find(
+            (u) => u.caseId === caseData.caseId
+          )
+        ) {
+          this.gameState.player.turnActions.upgrades.push({
+            caseId: caseData.caseId,
+          });
+        }
+      }
+
+      // Update selected upgrades text
+      this.updateSelectedUpgradesText();
+
+      // Show commit button if we have any upgrades to process
+      this.commitTurnButton.visible =
+        this.gameState.player.turnActions.upgrades.length > 0 || 
+        this.pendingPlacements.length > 0;
+        
+      // Update the display to reflect selection
+      this.updateCasesDisplay();
       return;
     }
 
@@ -1490,10 +1541,8 @@ export default class GameScene extends Phaser.Scene {
   addUpgradeInformation(container, caseData) {
     // Only show upgrade information if the case has an upgrade effect and is revealed
     if (
-      this.currentVisibleEra !== this.gameState.currentEra &&
-      (this.isUpgradeable(caseData) || caseData.isUpgraded) &&
-      caseData.isRevealed &&
-      caseData.owner
+      (caseData.isRevealed && caseData.owner) &&
+      (this.isUpgradeable(caseData) || caseData.isUpgraded) 
     ) {
       // Show upgrade effect
       if (caseData.upgradeEffect1) {
@@ -1528,11 +1577,11 @@ export default class GameScene extends Phaser.Scene {
         container.add(upgradeCost);
       }
 
-      // Show "Upgradeable" or "Upgraded" text
+      // Show "Upgrade" text (simplified from "Upgradeable"/"Upgraded")
       const upgradeText = this.add.text(
         -180 / 2 + 10,
         240 / 2 - 80,
-        caseData.isUpgraded ? "Upgraded" : "Upgradeable",
+        caseData.isUpgraded ? "Upgraded" : "Upgrade",
         {
           fontSize: "14px",
           fill: caseData.isUpgraded ? "#666666" : "#DAA520",
