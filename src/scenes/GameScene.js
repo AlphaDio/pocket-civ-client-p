@@ -7,7 +7,7 @@ const LEADER_CONTAINER_WIDTH = 300;
 
 // Display modes for case cards
 const DISPLAY_MODE = {
-  DEFAULT: 'default',      // Show claim effects and rewards
+  DEFAULT: 'default',      // Show claim effects, rewards, and upgrade information
   UPGRADE: 'upgrade',      // Show upgrade information
   LEADERS: 'leaders'       // Show leader placements
 };
@@ -761,38 +761,45 @@ export default class GameScene extends Phaser.Scene {
           displayMode = DISPLAY_MODE.DEFAULT;
           this.caseDisplayModes.set(caseData.caseId, displayMode);
         }
-        // If we're not in LEADERS mode but there are leaders, show them
-        else if (displayMode !== DISPLAY_MODE.LEADERS && hasLeaders) {
-          // Only show leaders if we're explicitly in LEADERS mode
-          if (leadersText) {
-            leadersText.setVisible(displayMode === DISPLAY_MODE.LEADERS);
-          }
-        }
       }
       
       // Add information based on display mode
       if (displayMode === DISPLAY_MODE.UPGRADE) {
-        // Show upgrade information
-        this.addUpgradeInformation(container, caseData);
-        // Hide leaders text when showing upgrade info
-        if (leadersText) {
-          leadersText.setVisible(false);
-        }
-      } else if (displayMode === DISPLAY_MODE.DEFAULT) {
-        // Show claim information for current era, upgrade info for history
-        if (this.currentVisibleEra === this.gameState.currentEra) {
-          this.addClaimInformation(container, caseData);
-          // Hide leaders text when showing claim info
-          if (leadersText) {
-            leadersText.setVisible(false);
-          }
-        } else {
-          // For history cases, show upgrade info by default
+        // Only show upgrade information for history era cases
+        if (this.currentVisibleEra !== this.gameState.currentEra && this.isUpgradeable(caseData)) {
           this.addUpgradeInformation(container, caseData);
           // Hide leaders text when showing upgrade info
           if (leadersText) {
             leadersText.setVisible(false);
           }
+        } else {
+          // If we're in current era, switch back to DEFAULT mode
+          displayMode = DISPLAY_MODE.DEFAULT;
+          this.caseDisplayModes.set(caseData.caseId, displayMode);
+        }
+      }
+      
+      if (displayMode === DISPLAY_MODE.DEFAULT) {
+        // In DEFAULT mode, show both claim and upgrade information
+        if (this.currentVisibleEra === this.gameState.currentEra) {
+          // For current era cases
+          if (caseData.owner) {
+            // For claimed cases, only show upgrade information if upgradeable
+            if (this.isUpgradeable(caseData)) {
+              this.addUpgradeInformation(container, caseData);
+            }
+          } else {
+            // For unclaimed cases, show claim information
+            this.addClaimInformation(container, caseData);
+          }
+        } else {
+          // For history cases, show upgrade info
+          this.addUpgradeInformation(container, caseData);
+        }
+        
+        // Hide leaders text in DEFAULT mode
+        if (leadersText) {
+          leadersText.setVisible(false);
         }
       } else if (displayMode === DISPLAY_MODE.LEADERS) {
         // Show leaders information
@@ -879,7 +886,7 @@ export default class GameScene extends Phaser.Scene {
         }
       }
       
-      // Always add the upgrade symbol for upgradeable cases, regardless of display mode
+      // Only add the upgrade symbol for upgradeable cases in history eras
       if (this.isUpgradeable(caseData)) {
         this.addUpgradeSymbol(container, caseData);
       }
@@ -929,7 +936,12 @@ export default class GameScene extends Phaser.Scene {
         if (isSelectedForUpgrade || this.selectedHistoryCase === caseData.caseId) {
           bg.setFillStyle(0x666666);
         } else {
-          bg.setFillStyle(0x333333);
+          const currentMode = this.caseDisplayModes.get(caseData.caseId) || DISPLAY_MODE.DEFAULT;
+          if (currentMode === DISPLAY_MODE.UPGRADE) {
+            bg.setFillStyle(0x555555); // Special highlight for upgrade mode
+          } else {
+            bg.setFillStyle(0x333333);
+          }
         }
       });
       bg.on("pointerdown", () => {
@@ -945,46 +957,11 @@ export default class GameScene extends Phaser.Scene {
         if (this.currentVisibleEra === this.gameState.currentEra) {
           // In current era
           
-          // If case has leaders and is upgradeable, cycle through display modes
-          if (hasLeaders && this.isUpgradeable(caseData)) {
-            let newMode;
-            
-            // Cycle through modes: DEFAULT -> UPGRADE -> LEADERS -> DEFAULT
-            if (currentMode === DISPLAY_MODE.DEFAULT) {
-              newMode = DISPLAY_MODE.UPGRADE;
-            } else if (currentMode === DISPLAY_MODE.UPGRADE) {
-              newMode = DISPLAY_MODE.LEADERS;
-            } else {
-              newMode = DISPLAY_MODE.DEFAULT;
-            }
-            
-            // Update display mode and refresh card
-            this.caseDisplayModes.set(caseData.caseId, newMode);
-            this.updateCaseCard(container, caseData, index);
-            
-            // Also handle upgrade selection if we're in UPGRADE mode
-            if (newMode === DISPLAY_MODE.UPGRADE) {
-              this.handleUpgradeSelection(caseData);
-            }
-            return;
-          }
-          // If case has leaders but is not upgradeable, toggle between DEFAULT and LEADERS
-          else if (hasLeaders) {
+          // If case has leaders, toggle between DEFAULT and LEADERS modes
+          if (hasLeaders) {
             const newMode = currentMode === DISPLAY_MODE.DEFAULT ? DISPLAY_MODE.LEADERS : DISPLAY_MODE.DEFAULT;
             this.caseDisplayModes.set(caseData.caseId, newMode);
             this.updateCaseCard(container, caseData, index);
-            return;
-          }
-          // If case is upgradeable but has no leaders, toggle between DEFAULT and UPGRADE
-          else if (this.isUpgradeable(caseData)) {
-            const newMode = currentMode === DISPLAY_MODE.DEFAULT ? DISPLAY_MODE.UPGRADE : DISPLAY_MODE.DEFAULT;
-            this.caseDisplayModes.set(caseData.caseId, newMode);
-            this.updateCaseCard(container, caseData, index);
-            
-            // Also handle upgrade selection if we're in UPGRADE mode
-            if (newMode === DISPLAY_MODE.UPGRADE) {
-              this.handleUpgradeSelection(caseData);
-            }
             return;
           }
           
@@ -992,7 +969,14 @@ export default class GameScene extends Phaser.Scene {
           this.handleCaseClick(caseData, container, index);
         } else if (this.isUpgradeable(caseData)) {
           // In history era, handle upgrade selection
-          this.handleHistoryCaseClick(caseData, bg);
+          if (currentMode === DISPLAY_MODE.UPGRADE) {
+            // If already in UPGRADE mode, toggle selection
+            this.handleHistoryCaseClick(caseData, bg);
+          } else {
+            // Otherwise, switch to UPGRADE mode first
+            this.caseDisplayModes.set(caseData.caseId, DISPLAY_MODE.UPGRADE);
+            this.updateCaseCard(container, caseData, index);
+          }
         }
       });
 
@@ -1068,18 +1052,8 @@ export default class GameScene extends Phaser.Scene {
         container.add(claimText);
       }
 
-      // Check if this case has leaders placed on it
-      const hasLeaders = (caseData.placedLeaders && caseData.placedLeaders.length > 0) ||
-                         this.gameState.player.turnActions.leaderPlacements.some(p => p.caseId === caseData.caseId) ||
-                         this.pendingPlacements.some(p => p.caseId === caseData.caseId);
-
       // Set initial display mode
       let initialMode = DISPLAY_MODE.DEFAULT;
-      
-      // For history cases, always start with upgrade info
-      if (this.currentVisibleEra !== this.gameState.currentEra) {
-        initialMode = DISPLAY_MODE.DEFAULT; // For history cases, DEFAULT shows upgrade info
-      }
       
       // Store the initial display mode
       this.caseDisplayModes.set(caseData.caseId, initialMode);
@@ -1095,7 +1069,7 @@ export default class GameScene extends Phaser.Scene {
         }
       }
       
-      // Always add the upgrade symbol for upgradeable cases, regardless of display mode
+      // Only add the upgrade symbol for upgradeable cases in history eras
       if (this.isUpgradeable(caseData)) {
         this.addUpgradeSymbol(container, caseData);
       }
@@ -1127,7 +1101,7 @@ export default class GameScene extends Phaser.Scene {
     if (isAlreadySelected) {
       // Deselect the case
       this.selectedHistoryCase = null;
-      bg.setFillStyle(0x333333);
+      bg.setFillStyle(0x555555); // Keep the upgrade mode highlight
 
       // Remove this case from pending upgrades
       this.gameState.player.turnActions.upgrades =
@@ -1209,18 +1183,24 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
-    // Check if this is an upgradeable case and handle upgrade selection
-    if (this.isUpgradeable(caseData)) {
-      // Get current display mode
-      const currentMode = this.caseDisplayModes.get(caseData.caseId) || DISPLAY_MODE.DEFAULT;
-      
-      // If we're in UPGRADE mode, handle the upgrade selection
-      if (currentMode === DISPLAY_MODE.UPGRADE) {
-        this.handleUpgradeSelection(caseData);
-        return;
-      }
+    // Get current display mode
+    const currentMode = this.caseDisplayModes.get(caseData.caseId) || DISPLAY_MODE.DEFAULT;
+    
+    // Check if this case has leaders placed on it
+    const hasLeaders = (caseData.placedLeaders && caseData.placedLeaders.length > 0) ||
+                       this.gameState.player.turnActions.leaderPlacements.some(p => p.caseId === caseData.caseId) ||
+                       this.pendingPlacements.some(p => p.caseId === caseData.caseId);
+
+    // Handle display mode cycling
+    if (hasLeaders) {
+      // If case has leaders, toggle between DEFAULT and LEADERS modes
+      const newMode = currentMode === DISPLAY_MODE.DEFAULT ? DISPLAY_MODE.LEADERS : DISPLAY_MODE.DEFAULT;
+      this.caseDisplayModes.set(caseData.caseId, newMode);
+      this.updateCaseCard(container, caseData, index);
+      return;
     }
 
+    // Cases in the current era cannot be upgraded, so just handle leader placement
     if (this.selectedLeader) {
       const leader = this.gameState.player.leaders.find(
         (l) => l.leaderId === this.selectedLeader
@@ -1314,6 +1294,11 @@ export default class GameScene extends Phaser.Scene {
       this.updateSelectedUpgradesText();
 
       console.log("Successfully committed turn");
+
+      // Change the display mode to LEADERS for each pending placement
+      this.pendingPlacements.forEach(placement => {
+        this.caseDisplayModes.set(placement.caseId, DISPLAY_MODE.LEADERS);
+      });
 
       // Schedule an immediate poll
       this.schedulePoll(0);
@@ -1877,17 +1862,13 @@ export default class GameScene extends Phaser.Scene {
       }
     );
     container.add(claimLabel);
-
-    // Always add the upgrade symbol for upgradeable cases
-    if (this.isUpgradeable(caseData)) {
-      this.addUpgradeSymbol(container, caseData);
-    }
   }
 
   // Add a method to add the upgrade symbol to any case card
   addUpgradeSymbol(container, caseData) {
     // Only add the symbol if the case is upgradeable
     if (this.isUpgradeable(caseData)) {
+      console.log("Adding upgrade symbol");
       // Check if the symbol already exists in the container
       const existingSymbol = container.list.find(
         item => item.type === 'Text' && item.text === 'ᴜ' && Math.abs(item.y - (CARD_HEIGHT / 2 - 10)) < 5
