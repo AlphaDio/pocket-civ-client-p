@@ -132,7 +132,7 @@ export default class CaseManager {
         this.handleCaseClick(caseData, container, index)
       );
 
-      const nameText = this.scene.add
+    const nameText = this.scene.add
       .text(0, -90, caseData.isRevealed ? caseData.name : "???", {
         fontSize: "18px",
         fill: "#fff",
@@ -140,16 +140,16 @@ export default class CaseManager {
         wordWrap: { width: CARD_WIDTH - 20 },
       })
       .setOrigin(0.5);
-    nameText.name = "name"; // Assign name property
-    
+    nameText.name = "name";
+
     const typeText = this.scene.add
       .text(0, -60, caseData.type, {
         fontSize: "14px",
         fill: "#aaa",
       })
       .setOrigin(0.5);
-    typeText.name = "type"; // Assign name property
-    
+    typeText.name = "type";
+
     const leadersText = this.scene.add
       .text(0, 60, "", {
         fontSize: "12px",
@@ -158,8 +158,8 @@ export default class CaseManager {
         wordWrap: { width: CARD_WIDTH - 20 },
       })
       .setOrigin(0.5);
-    leadersText.name = "leaders"; // Assign name property
-    
+    leadersText.name = "leaders";
+
     container.add([bg, nameText, typeText, leadersText]);
 
     this.updateCaseCard(container, caseData, index);
@@ -168,21 +168,25 @@ export default class CaseManager {
   }
 
   updateCaseCard(container, caseData, index) {
-    // Find persistent text elements by their name properties
-    const nameText = container.list.find(e => e.type === "Text" && e.name === "name");
-    const typeText = container.list.find(e => e.type === "Text" && e.name === "type");
-    const leadersText = container.list.find(e => e.type === "Text" && e.name === "leaders");
-  
-    // Update the persistent texts
+    const nameText = container.list.find(
+      (e) => e.type === "Text" && e.name === "name"
+    );
+    const typeText = container.list.find(
+      (e) => e.type === "Text" && e.name === "type"
+    );
+    const leadersText = container.list.find(
+      (e) => e.type === "Text" && e.name === "leaders"
+    );
+
     if (nameText) {
       nameText.setText(caseData.isRevealed ? caseData.name : "???");
-      nameText.setVisible(true); // Ensure it’s always visible
+      nameText.setVisible(true);
     }
     if (typeText) {
       typeText.setText(caseData.type);
-      typeText.setVisible(true); // Ensure it’s always visible
+      typeText.setVisible(true);
     }
-  
+
     // Clear dynamic texts (excluding persistent ones)
     container.list
       .filter(
@@ -193,15 +197,60 @@ export default class CaseManager {
           e !== leadersText
       )
       .forEach((e) => e.destroy());
-  
-    // Get the current display mode
-    const displayMode = this.scene.caseDisplayModes.get(caseData.caseId) || DISPLAY_MODE.DEFAULT;
-  
+
+    const displayMode =
+      this.scene.caseDisplayModes.get(caseData.caseId) || DISPLAY_MODE.DEFAULT;
+
+    // Always add exploration/claim points for current era cases
+    if (this.scene.currentVisibleEra === this.scene.gameState.currentEra) {
+      let yOffset = -30;
+      if (caseData.owner) {
+        const ownerText = this.scene.add
+          .text(0, yOffset, `${caseData.owner.slice(-3)}`, {
+            fontSize: "14px",
+            fill: "#00ff00",
+          })
+          .setOrigin(0.5);
+        container.add(ownerText);
+      } else if (!caseData.isRevealed) {
+        const explorationPointsText = Object.entries(
+          caseData.explorationPoints || {}
+        )
+          .map(([uuid, points]) => `${points}[${uuid.slice(-3)}]`)
+          .join(" ");
+        if (explorationPointsText) {
+          const explorationText = this.scene.add
+            .text(0, yOffset, explorationPointsText, {
+              fontSize: "14px",
+              fill: "#fff",
+            })
+            .setOrigin(0.5);
+          container.add(explorationText);
+        }
+      } else {
+        const claimPointsText = Object.entries(caseData.claimPoints || {})
+          .map(([uuid, points]) => `${points}[${uuid.slice(-3)}]`)
+          .join(" ");
+        if (claimPointsText) {
+          const claimText = this.scene.add
+            .text(0, yOffset, claimPointsText, {
+              fontSize: "14px",
+              fill: "#fff",
+            })
+            .setOrigin(0.5);
+          container.add(claimText);
+        }
+      }
+    }
+
     // Add mode-specific information
     if (displayMode === DISPLAY_MODE.LEADER) {
       this.addLeaderInformation(container, caseData);
       if (leadersText) leadersText.setVisible(true);
-    } else if (displayMode === DISPLAY_MODE.UPGRADE && this.isUpgradeable(caseData)) {
+    } else if (
+      displayMode === DISPLAY_MODE.UPGRADE &&
+      this.isUpgradeable(caseData)
+    ) {
       this.addUpgradeInformation(container, caseData);
       if (leadersText) leadersText.setVisible(false);
     } else {
@@ -211,11 +260,20 @@ export default class CaseManager {
   }
 
   handleCaseClick(caseData, container, index) {
-    // Check if the era matches (existing logic)
+    // Fetch the latest caseData from gameState to ensure points are current
+    const latestCaseData = this.scene.gameState.currentCases.find(
+      (c) => c.caseId === caseData.caseId
+    );
+    if (!latestCaseData) {
+      console.warn(`Case ${caseData.caseId} not found in current game state`);
+      return;
+    }
+
+    // Check if we're in the current era
     if (this.scene.currentVisibleEra !== this.scene.gameState.currentEra) {
-      if (this.isUpgradeable(caseData)) {
+      if (this.isUpgradeable(latestCaseData)) {
         this.handleHistoryCaseClick(
-          caseData,
+          latestCaseData,
           container.list.find((e) => e.type === "Rectangle")
         );
       }
@@ -225,20 +283,23 @@ export default class CaseManager {
     const selectedLeader = this.scene.leaderManager.getSelectedLeader();
     if (
       selectedLeader.leaderId &&
-      this.scene.leaderManager.addPendingPlacement(caseData.caseId)
+      this.scene.leaderManager.addPendingPlacement(latestCaseData.caseId)
     ) {
-      // After placing a leader, set the case to LEADER mode
-      this.scene.caseDisplayModes.set(caseData.caseId, DISPLAY_MODE.LEADER);
-      this.updateCasesDisplay();
+      // Leader placement occurred, set to LEADER mode
+      this.scene.caseDisplayModes.set(
+        latestCaseData.caseId,
+        DISPLAY_MODE.LEADER
+      );
+      this.updateCasesDisplay(); // Full refresh with latest gameState
       this.scene.commitTurnButton.visible = true;
     } else {
-      // Toggle the display mode when no leader is being placed
+      // Toggle display mode
       const currentMode =
-        this.scene.caseDisplayModes.get(caseData.caseId) ||
+        this.scene.caseDisplayModes.get(latestCaseData.caseId) ||
         DISPLAY_MODE.DEFAULT;
       let newMode;
       if (currentMode === DISPLAY_MODE.LEADER) {
-        newMode = this.isUpgradeable(caseData)
+        newMode = this.isUpgradeable(latestCaseData)
           ? DISPLAY_MODE.UPGRADE
           : DISPLAY_MODE.DEFAULT;
       } else if (currentMode === DISPLAY_MODE.UPGRADE) {
@@ -246,8 +307,8 @@ export default class CaseManager {
       } else {
         newMode = DISPLAY_MODE.LEADER;
       }
-      this.scene.caseDisplayModes.set(caseData.caseId, newMode);
-      this.updateCaseCard(container, caseData, index);
+      this.scene.caseDisplayModes.set(latestCaseData.caseId, newMode);
+      this.updateCaseCard(container, latestCaseData, index); // Use latestCaseData
     }
   }
 
@@ -426,15 +487,19 @@ export default class CaseManager {
   }
 
   addLeaderInformation(container, caseData) {
-    const leaderText = this.scene.leaderManager.getLeaderDisplayForCase(caseData.caseId);
+    const leaderText = this.scene.leaderManager.getLeaderDisplayForCase(
+      caseData.caseId
+    );
     if (leaderText) {
       container.add(
-        this.scene.add.text(0, 80, leaderText, {
-          fontSize: "12px",
-          fill: "#00ff00",
-          align: "center",
-          wordWrap: { width: 120 } // Adjust width as needed
-        }).setOrigin(0.5)
+        this.scene.add
+          .text(0, 80, leaderText, {
+            fontSize: "12px",
+            fill: "#00ff00",
+            align: "center",
+            wordWrap: { width: 120 },
+          })
+          .setOrigin(0.5)
       );
     }
   }
