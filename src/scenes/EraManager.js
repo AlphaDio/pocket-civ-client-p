@@ -22,12 +22,13 @@ export default class EraManager {
   }
 
   showEra(era) {
-    if (!this.scene.gameState) return;
+    // Only clear display modes if the era is changing
+    if (this.scene.currentVisibleEra !== era) {
+      this.scene.caseDisplayModes.clear();
+      // Additional era-switching logic can be added here if needed
+    }
 
-    this.scene.caseDisplayModes.clear();
-    const currentUpgrades =
-      this.scene.gameState.player.turnActions.upgrades || [];
-
+    // Existing logic to manage visibility and containers
     this.scene.historyCasesContainer.setVisible(false);
     this.scene.casesContainer.setVisible(false);
 
@@ -45,22 +46,12 @@ export default class EraManager {
       this.scene.eraLabel.setText(`Era ${era}`);
     }
 
-    const allEras = [
-      ...Object.keys(this.scene.gameState.historyCases || {}).map(Number),
-      this.scene.gameState.currentEra,
-    ].sort((a, b) => a - b);
-    const currentIndex = allEras.indexOf(era);
-    this.scene.prevEraButton.setVisible(currentIndex > 0);
-    this.scene.nextEraButton.setVisible(currentIndex < allEras.length - 1);
-
+    // Update the current visible era
     this.scene.currentVisibleEra = era;
+
+    // Refresh the display
     this.scene.caseManager.updateCasesDisplay();
     this.scene.caseManager.updateHistoryCasesDisplay();
-
-    this.scene.gameState.player.turnActions.upgrades = currentUpgrades;
     this.scene.uiManager.updateSelectedUpgradesText();
-    this.scene.commitTurnButton.visible =
-      currentUpgrades.length > 0 ||
-      this.scene.leaderManager.getPendingPlacements().length > 0;
   }
 }
