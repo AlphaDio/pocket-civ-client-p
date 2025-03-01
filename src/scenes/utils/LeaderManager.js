@@ -27,11 +27,9 @@ export default class LeaderManager {
   }
 
   updateLeadersDisplay(leaders) {
-    // Track which leaders are still active
     const activeLeaderIds = new Set();
-
+  
     if (!leaders || leaders.length === 0) {
-      // Hide all pooled leaders if there are none to display
       for (const [_, display] of this.leaderPool) {
         display.nameText.visible = false;
         display.knowledgeText.visible = false;
@@ -41,112 +39,69 @@ export default class LeaderManager {
       this.leadersBg.setSize(LEADER_CONTAINER_WIDTH, 100);
       return;
     }
-
-    // Calculate total height needed
-    const leaderHeight = 60; // Reduced height
-    const padding = 5; // Reduced padding
-    const totalHeight = Math.max(100, leaders.length * leaderHeight + padding * 2);
-
-    // Start from the bottom
-    let yOffset = totalHeight - padding - leaderHeight;
-
+  
+    const baseLeaderHeight = 80;
+    const uniqueEffectExtraHeight = 20;
+    const padding = 5;
+  
+    const totalHeight = Math.max(
+      100,
+      leaders.length * (baseLeaderHeight + (this.selectedLeaderUnique ? uniqueEffectExtraHeight : 0)) + padding * 2
+    );
+    let yOffset = totalHeight - padding - baseLeaderHeight;
+  
     leaders.forEach((leader, index) => {
       const leaderId = leader.leaderId;
       activeLeaderIds.add(leaderId);
-
-      // Find if this leader has a pending placement
+  
       const pendingPlacement = this.scene.gameState.player.turnActions.leaderPlacements.find(
         (p) => p.leaderId === leaderId
       );
-
+  
       let display;
       if (this.leaderPool.has(leaderId)) {
-        // Update existing leader display
         display = this.leaderPool.get(leaderId);
-
-        // Update text content with both ranges
+  
+        // Update text content without changing font size
         display.nameText.setText(
-          `${leader.name} (R1: ${leader.range1.value} ${leader.range1.direction}, R2: ${leader.range2.value} ${leader.range2.direction})`
+          `${leader.name} (Range 1: ${leader.range1.value} ${leader.range1.direction}, Range 2: ${leader.range2.value} ${leader.range2.direction})`
         );
-        
-        // Show both range knowledge types
         display.knowledgeText.setText(
           `R1: ${leader.range1.knowledge.type.substring(0, 3)}: ${leader.range1.knowledge.amount} | ` +
           `R2: ${leader.range2.knowledge.type.substring(0, 3)}: ${leader.range2.knowledge.amount}`
         );
-
-        // Update unique ability text and add case position if placed
-        let uniqueAbilityText = `${leader.uniqueAbility.name} (${leader.uniqueAbility.usedThisEra ? "Used" : "Available"})`;
-        if (pendingPlacement) {
-          const casePosition = this.scene.gameState.currentCases.findIndex(
-            (c) => c.caseId === pendingPlacement.caseId
-          ) + 1;
-          if (casePosition > 0) {
-            uniqueAbilityText += ` | Case: #${casePosition}`;
-          }
-        }
-        display.uniqueText.setText(uniqueAbilityText);
-        display.uniqueText.setStyle({
-          fill: leader.uniqueAbility.usedThisEra ? "#888" : "#00ff00",
-        });
-
-        // Show the display elements
+  
         display.nameText.visible = true;
         display.knowledgeText.visible = true;
         display.uniqueText.visible = true;
         display.bg.visible = true;
-
-        // Update text sizes
-        display.nameText.setStyle({ fontSize: "12px" });
-        display.knowledgeText.setStyle({ fontSize: "10px" });
-        display.uniqueText.setStyle({ fontSize: "10px" });
+  
+        // Ensure font sizes remain consistent with initial creation
+        display.nameText.setStyle({ fontSize: "14px", fill: "#fff" });
+        display.knowledgeText.setStyle({ fontSize: "12px", fill: "#aaa" });
+        display.uniqueText.setStyle({ fontSize: "15px", fill: "#00ff00" });
       } else {
-        // Create background for the leader
-        const bg = this.scene.add.rectangle(0, 0, LEADER_CONTAINER_WIDTH, leaderHeight - 10, 0x333333);
+        const bg = this.scene.add.rectangle(0, 0, LEADER_CONTAINER_WIDTH, baseLeaderHeight - 10, 0x333333);
         bg.setInteractive();
-
-        // Create new leader display objects with updated range information
-        const nameText = this.scene.add.text(10, 0, 
-          `${leader.name} (R1: ${leader.range1.value} ${leader.range1.direction}, R2: ${leader.range2.value} ${leader.range2.direction})`, {
-          fontSize: "14px",
-          fill: "#fff",
-        });
-
-        const knowledgeText = this.scene.add.text(10, 20, 
+  
+        const nameText = this.scene.add.text(10, 0,
+          `${leader.name} (R1: ${leader.range1.value} ${leader.range1.direction}, R2: ${leader.range2.value} ${leader.range2.direction})`,
+          { fontSize: "14px", fill: "#fff" }
+        );
+        const knowledgeText = this.scene.add.text(10, 20,
           `R1: ${leader.range1.knowledge.type.substring(0, 3)}: ${leader.range1.knowledge.amount} | ` +
-          `R2: ${leader.range2.knowledge.type.substring(0, 3)}: ${leader.range2.knowledge.amount}`, {
-          fontSize: "12px",
-          fill: "#aaa",
-        });
-
-        const uniqueText = this.scene.add.text(10, 40, "", {
-          fontSize: "12px",
-          fill: "#00ff00",
-        });
-
-        // Add to container
+          `R2: ${leader.range2.knowledge.type.substring(0, 3)}: ${leader.range2.knowledge.amount}`,
+          { fontSize: "12px", fill: "#aaa" }
+        );
+        const uniqueText = this.scene.add.text(10, 40, "",
+          { fontSize: "15px", fill: "#00ff00" }
+        );
+  
         this.leadersContainer.add([bg, nameText, knowledgeText, uniqueText]);
-
-        // Create display object and add to pool
+  
         display = { bg, nameText, knowledgeText, uniqueText };
         this.leaderPool.set(leaderId, display);
-
-        // Set initial unique ability text with case position if placed
-        let initialUniqueText = `${leader.uniqueAbility.name} (${leader.uniqueAbility.usedThisEra ? "Used" : "Available"})`;
-        if (pendingPlacement) {
-          const casePosition = this.scene.gameState.currentCases.findIndex(
-            (c) => c.caseId === pendingPlacement.caseId
-          ) + 1;
-          if (casePosition > 0) {
-            initialUniqueText += ` | Case: #${casePosition}`;
-          }
-        }
-        display.uniqueText.setText(initialUniqueText);
-        display.uniqueText.setStyle({
-          fill: leader.uniqueAbility.usedThisEra ? "#888" : "#00ff00",
-        });
-
-        // Setup click handler
+  
         bg.on("pointerdown", () => this.handleLeaderClick(leaderId, leader));
         bg.on("pointerover", () => {
           if (this.selectedLeader !== leaderId) {
@@ -158,21 +113,29 @@ export default class LeaderManager {
             bg.setFillStyle(0x333333);
           }
         });
-
-        // Set initial selection state
+  
         this.updateLeaderSelection(display, leader, leaderId);
       }
-
-      // Update positions
-      display.bg.setPosition(LEADER_CONTAINER_WIDTH / 2, yOffset + (leaderHeight - 10) / 2);
+  
+      const currentLeaderHeight = (this.selectedLeader === leaderId && this.selectedLeaderUnique)
+        ? baseLeaderHeight + uniqueEffectExtraHeight
+        : baseLeaderHeight;
+  
+      display.bg.setPosition(LEADER_CONTAINER_WIDTH / 2, yOffset + (currentLeaderHeight - 10) / 2);
+      display.bg.setSize(LEADER_CONTAINER_WIDTH, currentLeaderHeight - 10);
       display.nameText.setPosition(10, yOffset);
       display.knowledgeText.setPosition(10, yOffset + 20);
       display.uniqueText.setPosition(10, yOffset + 40);
-
-      yOffset -= leaderHeight; // Move up for the next leader
+  
+      // Prevent text wrapping or scaling by setting a fixed width and word wrap
+      const textWidth = LEADER_CONTAINER_WIDTH - 20; // 10px padding on each side
+      display.nameText.setWordWrapWidth(textWidth, true);
+      display.knowledgeText.setWordWrapWidth(textWidth, true);
+      display.uniqueText.setWordWrapWidth(textWidth, true);
+  
+      yOffset -= currentLeaderHeight;
     });
-
-    // Hide unused leader displays
+  
     for (const [leaderId, display] of this.leaderPool.entries()) {
       if (!activeLeaderIds.has(leaderId)) {
         display.nameText.visible = false;
@@ -181,8 +144,7 @@ export default class LeaderManager {
         display.bg.visible = false;
       }
     }
-
-    // Update background size to fit all leaders
+  
     this.leadersBg.setSize(LEADER_CONTAINER_WIDTH, totalHeight);
   }
 
@@ -229,11 +191,45 @@ export default class LeaderManager {
     if (this.selectedLeader === leaderId) {
       if (this.selectedLeaderUnique) {
         display.bg.setFillStyle(0xdaa520); // Gold color for unique selection
+        // Update unique text to show the effect
+        let uniqueText = `${leader.uniqueAbility.name} (${leader.uniqueAbility.usedThisEra ? "Used" : "Available"})`;
+        uniqueText += `\n${leader.uniqueAbility.description}`; // Add the effect text
+        display.uniqueText.setText(uniqueText);
       } else {
         display.bg.setFillStyle(0x666666); // Grey for normal selection
+        // Reset unique text to just show name and availability
+        let uniqueText = `${leader.uniqueAbility.name} (${leader.uniqueAbility.usedThisEra ? "Used" : "Available"})`;
+        // Add case position if placed
+        const pendingPlacement = this.scene.gameState.player.turnActions.leaderPlacements.find(
+          (p) => p.leaderId === leaderId
+        );
+        if (pendingPlacement) {
+          const casePosition = this.scene.gameState.currentCases.findIndex(
+            (c) => c.caseId === pendingPlacement.caseId
+          ) + 1;
+          if (casePosition > 0) {
+            uniqueText += ` | Case: #${casePosition}`;
+          }
+        }
+        display.uniqueText.setText(uniqueText);
       }
     } else {
       display.bg.setFillStyle(0x333333); // Default color
+      // Reset unique text to just show name and availability
+      let uniqueText = `${leader.uniqueAbility.name} (${leader.uniqueAbility.usedThisEra ? "Used" : "Available"})`;
+      // Add case position if placed
+      const pendingPlacement = this.scene.gameState.player.turnActions.leaderPlacements.find(
+        (p) => p.leaderId === leaderId
+      );
+      if (pendingPlacement) {
+        const casePosition = this.scene.gameState.currentCases.findIndex(
+          (c) => c.caseId === pendingPlacement.caseId
+        ) + 1;
+        if (casePosition > 0) {
+          uniqueText += ` | Case: #${casePosition}`;
+        }
+      }
+      display.uniqueText.setText(uniqueText);
     }
   }
 
