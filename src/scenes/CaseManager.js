@@ -132,7 +132,7 @@ export default class CaseManager {
         this.handleCaseClick(caseData, container, index)
       );
 
-    const nameText = this.scene.add
+      const nameText = this.scene.add
       .text(0, -90, caseData.isRevealed ? caseData.name : "???", {
         fontSize: "18px",
         fill: "#fff",
@@ -140,9 +140,16 @@ export default class CaseManager {
         wordWrap: { width: CARD_WIDTH - 20 },
       })
       .setOrigin(0.5);
+    nameText.name = "name"; // Assign name property
+    
     const typeText = this.scene.add
-      .text(0, -60, caseData.type, { fontSize: "14px", fill: "#aaa" })
+      .text(0, -60, caseData.type, {
+        fontSize: "14px",
+        fill: "#aaa",
+      })
       .setOrigin(0.5);
+    typeText.name = "type"; // Assign name property
+    
     const leadersText = this.scene.add
       .text(0, 60, "", {
         fontSize: "12px",
@@ -151,22 +158,32 @@ export default class CaseManager {
         wordWrap: { width: CARD_WIDTH - 20 },
       })
       .setOrigin(0.5);
-
+    leadersText.name = "leaders"; // Assign name property
+    
     container.add([bg, nameText, typeText, leadersText]);
+
     this.updateCaseCard(container, caseData, index);
+
     return container;
   }
 
   updateCaseCard(container, caseData, index) {
-    const elements = container.list;
-    const bg = elements.find((e) => e.type === "Rectangle");
-    const nameText = elements.find((e) => e.type === "Text" && e.y === -90);
-    const typeText = elements.find((e) => e.type === "Text" && e.y === -60);
-    const leadersText = elements.find((e) => e.type === "Text" && e.y === 60);
-
-    nameText.setText(caseData.isRevealed ? caseData.name : "???");
-    typeText.setText(caseData.type);
-
+    // Find persistent text elements by their name properties
+    const nameText = container.list.find(e => e.type === "Text" && e.name === "name");
+    const typeText = container.list.find(e => e.type === "Text" && e.name === "type");
+    const leadersText = container.list.find(e => e.type === "Text" && e.name === "leaders");
+  
+    // Update the persistent texts
+    if (nameText) {
+      nameText.setText(caseData.isRevealed ? caseData.name : "???");
+      nameText.setVisible(true); // Ensure it’s always visible
+    }
+    if (typeText) {
+      typeText.setText(caseData.type);
+      typeText.setVisible(true); // Ensure it’s always visible
+    }
+  
+    // Clear dynamic texts (excluding persistent ones)
     container.list
       .filter(
         (e) =>
@@ -176,148 +193,32 @@ export default class CaseManager {
           e !== leadersText
       )
       .forEach((e) => e.destroy());
-
-    let yOffset = -30;
-    if (caseData.owner) {
-      container.add(
-        this.scene.add
-          .text(0, yOffset, `${caseData.owner.slice(-3)}`, {
-            fontSize: "14px",
-            fill: "#00ff00",
-          })
-          .setOrigin(0.5)
-      );
-    } else if (!caseData.isRevealed) {
-      const explorationText = Object.entries(caseData.explorationPoints || {})
-        .map(([uuid, points]) => `${points}[${uuid.slice(-3)}]`)
-        .join(" ");
-      container.add(
-        this.scene.add
-          .text(0, yOffset, explorationText, { fontSize: "14px", fill: "#fff" })
-          .setOrigin(0.5)
-      );
-    } else {
-      const claimText = Object.entries(caseData.claimPoints || {})
-        .map(([uuid, points]) => `${points}[${uuid.slice(-3)}]`)
-        .join(" ");
-      container.add(
-        this.scene.add
-          .text(0, yOffset, claimText, { fontSize: "14px", fill: "#fff" })
-          .setOrigin(0.5)
-      );
-    }
-
-    const hasLeaders =
-      caseData.placedLeaders?.length > 0 ||
-      this.scene.gameState.player.turnActions.leaderPlacements.some(
-        (p) => p.caseId === caseData.caseId
-      ) ||
-      this.scene.leaderManager.hasPlacementsForCase(caseData.caseId);
-    let displayMode =
-      this.scene.caseDisplayModes.get(caseData.caseId) || DISPLAY_MODE.DEFAULT;
-
-    if (
-      this.scene.currentVisibleEra === this.scene.gameState.currentEra &&
-      hasLeaders &&
-      displayMode === DISPLAY_MODE.LEADERS &&
-      !hasLeaders
-    ) {
-      displayMode = DISPLAY_MODE.DEFAULT;
-      this.scene.caseDisplayModes.set(caseData.caseId, displayMode);
-    }
-
-    if (
-      displayMode === DISPLAY_MODE.UPGRADE &&
-      this.isUpgradeable(caseData) &&
-      this.scene.currentVisibleEra !== this.scene.gameState.currentEra
-    ) {
+  
+    // Get the current display mode
+    const displayMode = this.scene.caseDisplayModes.get(caseData.caseId) || DISPLAY_MODE.DEFAULT;
+  
+    // Add mode-specific information
+    if (displayMode === DISPLAY_MODE.LEADER) {
+      this.addLeaderInformation(container, caseData);
+      if (leadersText) leadersText.setVisible(true);
+    } else if (displayMode === DISPLAY_MODE.UPGRADE && this.isUpgradeable(caseData)) {
       this.addUpgradeInformation(container, caseData);
       if (leadersText) leadersText.setVisible(false);
-    } else if (displayMode === DISPLAY_MODE.DEFAULT) {
-      if (this.scene.currentVisibleEra === this.scene.gameState.currentEra) {
-        if (caseData.owner && this.isUpgradeable(caseData))
-          this.addUpgradeInformation(container, caseData);
-        else this.addClaimInformation(container, caseData);
-      } else {
-        this.addUpgradeInformation(container, caseData);
-      }
+    } else {
+      this.addClaimInformation(container, caseData);
       if (leadersText) leadersText.setVisible(false);
-    } else if (displayMode === DISPLAY_MODE.LEADERS) {
-      if (leadersText) leadersText.setVisible(true);
     }
-
-    const isSelectedForUpgrade =
-      this.scene.gameState.player.turnActions.upgrades?.some(
-        (u) => u.caseId === caseData.caseId
-      );
-    bg.setFillStyle(
-      isSelectedForUpgrade || this.scene.selectedHistoryCase === caseData.caseId
-        ? 0x666666
-        : displayMode === DISPLAY_MODE.UPGRADE
-        ? 0x555555
-        : 0x333333
-    );
-
-    if (leadersText) {
-      const leaderText = this.scene.leaderManager.getLeaderDisplayForCase(
-        caseData.caseId
-      );
-      leadersText.setText(leaderText || "");
-      leadersText.setVisible(
-        displayMode === DISPLAY_MODE.LEADERS && leaderText
-      );
-    }
-
-    if (this.isUpgradeable(caseData))
-      this.addUpgradeSymbol(container, caseData);
   }
 
   handleCaseClick(caseData, container, index) {
+    // Check if the era matches (existing logic)
     if (this.scene.currentVisibleEra !== this.scene.gameState.currentEra) {
-      if (this.isUpgradeable(caseData))
+      if (this.isUpgradeable(caseData)) {
         this.handleHistoryCaseClick(
           caseData,
           container.list.find((e) => e.type === "Rectangle")
         );
-      return;
-    }
-
-    for (const [caseId, mode] of this.scene.caseDisplayModes.entries()) {
-      if (caseId !== caseData.caseId && mode !== DISPLAY_MODE.DEFAULT) {
-        this.scene.caseDisplayModes.set(caseId, DISPLAY_MODE.DEFAULT);
-        const resetCase = this.scene.gameState.currentCases.find(
-          (c) => c.caseId === caseId
-        );
-        if (resetCase) {
-          const resetContainer = this.scene.currentCasePool.get(caseId);
-          if (resetContainer)
-            this.updateCaseCard(
-              resetContainer,
-              resetCase,
-              this.scene.gameState.currentCases.findIndex(
-                (c) => c.caseId === caseId
-              )
-            );
-        }
       }
-    }
-
-    const hasLeaders =
-      caseData.placedLeaders?.length > 0 ||
-      this.scene.gameState.player.turnActions.leaderPlacements.some(
-        (p) => p.caseId === caseData.caseId
-      ) ||
-      this.scene.leaderManager.hasPlacementsForCase(caseData.caseId);
-    const currentMode =
-      this.scene.caseDisplayModes.get(caseData.caseId) || DISPLAY_MODE.DEFAULT;
-
-    if (hasLeaders) {
-      const newMode =
-        currentMode === DISPLAY_MODE.DEFAULT
-          ? DISPLAY_MODE.LEADERS
-          : DISPLAY_MODE.DEFAULT;
-      this.scene.caseDisplayModes.set(caseData.caseId, newMode);
-      this.updateCaseCard(container, caseData, index);
       return;
     }
 
@@ -326,9 +227,27 @@ export default class CaseManager {
       selectedLeader.leaderId &&
       this.scene.leaderManager.addPendingPlacement(caseData.caseId)
     ) {
-      this.scene.caseDisplayModes.set(caseData.caseId, DISPLAY_MODE.LEADERS);
+      // After placing a leader, set the case to LEADER mode
+      this.scene.caseDisplayModes.set(caseData.caseId, DISPLAY_MODE.LEADER);
       this.updateCasesDisplay();
       this.scene.commitTurnButton.visible = true;
+    } else {
+      // Toggle the display mode when no leader is being placed
+      const currentMode =
+        this.scene.caseDisplayModes.get(caseData.caseId) ||
+        DISPLAY_MODE.DEFAULT;
+      let newMode;
+      if (currentMode === DISPLAY_MODE.LEADER) {
+        newMode = this.isUpgradeable(caseData)
+          ? DISPLAY_MODE.UPGRADE
+          : DISPLAY_MODE.DEFAULT;
+      } else if (currentMode === DISPLAY_MODE.UPGRADE) {
+        newMode = DISPLAY_MODE.DEFAULT;
+      } else {
+        newMode = DISPLAY_MODE.LEADER;
+      }
+      this.scene.caseDisplayModes.set(caseData.caseId, newMode);
+      this.updateCaseCard(container, caseData, index);
     }
   }
 
@@ -504,6 +423,20 @@ export default class CaseManager {
         })
         .setOrigin(0.5)
     );
+  }
+
+  addLeaderInformation(container, caseData) {
+    const leaderText = this.scene.leaderManager.getLeaderDisplayForCase(caseData.caseId);
+    if (leaderText) {
+      container.add(
+        this.scene.add.text(0, 80, leaderText, {
+          fontSize: "12px",
+          fill: "#00ff00",
+          align: "center",
+          wordWrap: { width: 120 } // Adjust width as needed
+        }).setOrigin(0.5)
+      );
+    }
   }
 
   isUpgradeable(caseData) {

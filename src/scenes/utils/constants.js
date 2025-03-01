@@ -7,5 +7,5 @@ export const LEADER_CONTAINER_WIDTH = 300;
 export const DISPLAY_MODE = {
   DEFAULT: 'default',      // Show claim effects, rewards, and upgrade information
   UPGRADE: 'upgrade',      // Show upgrade information
-  LEADERS: 'leaders'       // Show leader placements
+  LEADER: 'leader'       // Show leader placements
 };
