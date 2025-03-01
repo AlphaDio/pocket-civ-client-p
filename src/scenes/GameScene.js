@@ -1,6 +1,10 @@
 import Phaser from "phaser";
 // Import constants from the new file
 import { BACKEND_URL, CARD_WIDTH, CARD_HEIGHT, LEADER_CONTAINER_WIDTH, DISPLAY_MODE } from './utils/constants';
+// Import APIService
+import APIService from './utils/APIService';
+// Import LeaderManager
+import LeaderManager from './utils/LeaderManager';
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -10,7 +14,6 @@ export default class GameScene extends Phaser.Scene {
     this.playerUUID = null;
     this.currentCasePool = new Map(); // Pool for current era cases
     this.historyCasePool = new Map(); // Pool for historical cases
-    this.leaderPool = new Map(); // Pool to store leader display objects
     this.playerPool = new Map(); // Pool to store other player display objects
     this.selectedLeader = null; // Track currently selected leader
     this.selectedLeaderUnique = false; // Track if unique ability is selected
@@ -21,6 +24,8 @@ export default class GameScene extends Phaser.Scene {
     this.selectedHistoryCase = null; // Track currently selected history case
     this.showingUpgradeInfo = null; // Track which case is currently showing upgrade info
     this.caseDisplayModes = new Map(); // Track display mode for each case
+    // Initialize the leader manager
+    this.leaderManager = null;
     console.log("GameScene: Initialized");
   }
 
@@ -53,6 +58,10 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
     console.log("GameScene: Creating game UI elements");
+    
+    // Initialize the leader manager
+    this.leaderManager = new LeaderManager(this);
+    
     this.createUI();
 
     // Add click handler to clear display modes when clicking elsewhere
@@ -158,17 +167,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Leaders container - moved to bottom
     const leadersY = screenHeight - 120;
-    this.leadersContainer = this.add.container(10, leadersY);
-    const leadersBg = this.add.rectangle(
-      0,
-      0,
-      LEADER_CONTAINER_WIDTH,
-      110,
-      0x222222,
-      0.5
-    );
-    this.leadersContainer.add(leadersBg);
-    this.leadersBg = leadersBg;
+    this.leadersContainer = this.leaderManager.createLeadersContainer(10, leadersY);
 
     // Add player UUID display above leaders container
     this.playerUUIDText = this.add.text(
@@ -307,23 +306,8 @@ export default class GameScene extends Phaser.Scene {
     console.log(`GameScene: Polling game state from ${BACKEND_URL}`);
     try {
       console.log(`GameScene: Fetching state for game ${this.gameId}`);
-      const response = await fetch(
-        `${BACKEND_URL}/api/games/${this.gameId}/state`,
-        {
-          headers: {
-            "X-Player-UUID": this.playerUUID,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        console.error(
-          `GameScene: Server returned error status ${response.status}`
-        );
-        throw new Error("Failed to fetch game state");
-      }
-
-      const gameState = await response.json();
+      // Replace direct fetch with APIService call
+      const gameState = await APIService.fetchGameState(this.gameId, this.playerUUID);
       console.log("GameScene: Received game state:", gameState);
       this.updateGameState(gameState);
 
@@ -341,19 +325,11 @@ export default class GameScene extends Phaser.Scene {
   async handleStartGame() {
     console.log("GameScene: Attempting to start game");
     try {
-      const response = await fetch(
-        `${BACKEND_URL}/api/games/${this.gameId}/start`,
-        {
-          method: "POST",
-          headers: {
-            "X-Player-UUID": this.playerUUID,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const data = await response.json();
-        console.error("GameScene: Failed to start game:", data.error);
+      // Replace direct fetch with APIService call
+      const success = await APIService.startGame(this.gameId, this.playerUUID);
+      
+      if (!success) {
+        console.error("GameScene: Failed to start game");
         // You might want to show an error message to the user here
         return;
       }
@@ -368,19 +344,11 @@ export default class GameScene extends Phaser.Scene {
   async handleForceProcessTurn() {
     console.log("GameScene: Attempting to force process turn");
     try {
-      const response = await fetch(
-        `${BACKEND_URL}/api/games/${this.gameId}/force-process-turn`,
-        {
-          method: "POST",
-          headers: {
-            "X-Player-UUID": this.playerUUID,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const data = await response.json();
-        console.error("GameScene: Failed to force process turn:", data.error);
+      // Replace direct fetch with APIService call
+      const success = await APIService.forceProcessTurn(this.gameId, this.playerUUID);
+      
+      if (!success) {
+        console.error("GameScene: Failed to force process turn");
         return;
       }
 
@@ -455,8 +423,8 @@ export default class GameScene extends Phaser.Scene {
     // Update status text
     this.statusText.setText(`Game Status: ${gameState.status}`);
 
-    // Update leaders display
-    this.updateLeadersDisplay(gameState.player.leaders);
+    // Update leaders display using the leader manager
+    this.leaderManager.updateLeadersDisplay(gameState.player.leaders);
 
     // Show/hide start game button based on game status and player being creator
     this.startGameButton.visible =
@@ -516,7 +484,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Show commit button if we have any pending placements or upgrades
     this.commitTurnButton.visible =
-      this.pendingPlacements.length > 0 ||
+      this.leaderManager.getPendingPlacements().length > 0 ||
       this.gameState.player.turnActions.upgrades.length > 0;
   }
 
@@ -739,7 +707,7 @@ export default class GameScene extends Phaser.Scene {
       // Check if this case has leaders placed on it
       const hasLeaders = (caseData.placedLeaders && caseData.placedLeaders.length > 0) ||
                          this.gameState.player.turnActions.leaderPlacements.some(p => p.caseId === caseData.caseId) ||
-                         this.pendingPlacements.some(p => p.caseId === caseData.caseId);
+                         this.leaderManager.hasPlacementsForCase(caseData.caseId);
 
       // Get the current display mode for this case
       let displayMode = this.caseDisplayModes.get(caseData.caseId) || DISPLAY_MODE.DEFAULT;
@@ -817,57 +785,11 @@ export default class GameScene extends Phaser.Scene {
 
       // Update leaders text if it exists
       if (leadersText) {
-        const currentLeaders = caseData.placedLeaders || [];
-        const serverPendingPlacement =
-          this.gameState.player.turnActions.leaderPlacements.find(
-            (p) => p.caseId === caseData.caseId
-          );
-        const localPendingPlacement = this.pendingPlacements.find(
-          (p) => p.caseId === caseData.caseId
-        );
-
-        if (
-          currentLeaders.length > 0 ||
-          serverPendingPlacement ||
-          localPendingPlacement
-        ) {
-          const leaderStrings = [
-            ...currentLeaders.map((leader) => {
-              const shortUUID = leader.playerUUID.substring(0, 3);
-              const uniqueMarker = leader.usingUnique ? "*" : "";
-              return `${leader.name}${uniqueMarker}[${shortUUID}]`;
-            }),
-          ];
-
-          // Add server-side pending placements
-          if (serverPendingPlacement) {
-            const leader = this.gameState.player.leaders.find(
-              (l) => l.leaderId === serverPendingPlacement.leaderId
-            );
-            if (leader) {
-              const shortUUID = this.playerUUID.substring(0, 3);
-              const uniqueMarker = serverPendingPlacement.useUnique ? "*" : "";
-              leaderStrings.push(
-                `${leader.name}${uniqueMarker}[${shortUUID}] (Pending)`
-              );
-            }
-          }
-
-          // Add local pending placements
-          if (localPendingPlacement) {
-            const leader = this.gameState.player.leaders.find(
-              (l) => l.leaderId === localPendingPlacement.leaderId
-            );
-            if (leader) {
-              const shortUUID = this.playerUUID.substring(0, 3);
-              const uniqueMarker = localPendingPlacement.useUnique ? "*" : "";
-              leaderStrings.push(
-                `${leader.name}${uniqueMarker}[${shortUUID}] (Pending*)`
-              );
-            }
-          }
-
-          leadersText.setText(leaderStrings.join("\n"));
+        // Get leader display text from the leader manager
+        const leaderDisplayText = this.leaderManager.getLeaderDisplayForCase(caseData.caseId);
+        
+        if (leaderDisplayText) {
+          leadersText.setText(leaderDisplayText);
           // Only show leaders text if we're in LEADERS display mode
           leadersText.setVisible(displayMode === DISPLAY_MODE.LEADERS);
         } else {
@@ -938,7 +860,7 @@ export default class GameScene extends Phaser.Scene {
         // Check if this case has leaders placed on it
         const hasLeaders = (caseData.placedLeaders && caseData.placedLeaders.length > 0) ||
                            this.gameState.player.turnActions.leaderPlacements.some(p => p.caseId === caseData.caseId) ||
-                           this.pendingPlacements.some(p => p.caseId === caseData.caseId);
+                           this.leaderManager.hasPlacementsForCase(caseData.caseId);
         
         // Get current display mode
         const currentMode = this.caseDisplayModes.get(caseData.caseId) || DISPLAY_MODE.DEFAULT;
@@ -1179,7 +1101,7 @@ export default class GameScene extends Phaser.Scene {
     // Check if this case has leaders placed on it
     const hasLeaders = (caseData.placedLeaders && caseData.placedLeaders.length > 0) ||
                        this.gameState.player.turnActions.leaderPlacements.some(p => p.caseId === caseData.caseId) ||
-                       this.pendingPlacements.some(p => p.caseId === caseData.caseId);
+                       this.leaderManager.hasPlacementsForCase(caseData.caseId);
 
     // Handle display mode cycling
     if (hasLeaders) {
@@ -1191,36 +1113,10 @@ export default class GameScene extends Phaser.Scene {
     }
 
     // Cases in the current era cannot be upgraded, so just handle leader placement
-    if (this.selectedLeader) {
-      const leader = this.gameState.player.leaders.find(
-        (l) => l.leaderId === this.selectedLeader
-      );
-      if (leader) {
-        // Check if this leader already has a pending placement
-        const existingPlacement = this.pendingPlacements.find(
-          (p) => p.leaderId === leader.leaderId
-        );
-        if (existingPlacement) {
-          // Update existing placement
-          existingPlacement.caseId = caseData.caseId;
-          existingPlacement.useUnique = this.selectedLeaderUnique;
-        } else {
-          // Add new placement
-          this.pendingPlacements.push({
-            leaderId: leader.leaderId,
-            caseId: caseData.caseId,
-            useUnique: this.selectedLeaderUnique,
-          });
-        }
-
-        // Clear selection
-        this.selectedLeader = null;
-        this.selectedLeaderUnique = false;
-        const display = this.leaderPool.get(leader.leaderId);
-        if (display) {
-          this.updateLeaderSelection(display, leader, leader.leaderId);
-        }
-
+    const selectedLeader = this.leaderManager.getSelectedLeader();
+    if (selectedLeader.leaderId) {
+      // Add the pending placement using the leader manager
+      if (this.leaderManager.addPendingPlacement(caseData.caseId)) {
         // Set display mode to LEADERS to show the placement
         this.caseDisplayModes.set(caseData.caseId, DISPLAY_MODE.LEADERS);
         
@@ -1236,28 +1132,21 @@ export default class GameScene extends Phaser.Scene {
   async handleCommitTurn() {
     console.log(
       "GameScene: Committing turn with pending placements:",
-      this.pendingPlacements,
+      this.leaderManager.getPendingPlacements(),
       "and upgrades:",
       this.gameState.player.turnActions.upgrades
     );
     try {
-      const response = await fetch(
-        `${BACKEND_URL}/api/games/${this.gameId}/commit-turn`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Player-UUID": this.playerUUID,
-          },
-          body: JSON.stringify({
-            leaderPlacements: this.pendingPlacements,
-            upgrades: this.gameState.player.turnActions.upgrades || [],
-          }),
-        }
+      // Replace direct fetch with APIService call
+      const success = await APIService.commitTurn(
+        this.gameId, 
+        this.playerUUID, 
+        this.leaderManager.getPendingPlacements(), 
+        this.gameState.player.turnActions.upgrades || []
       );
 
-      if (!response.ok) {
-        console.error("Failed to commit turn:", await response.json());
+      if (!success) {
+        console.error("Failed to commit turn");
         return;
       }
 
@@ -1267,14 +1156,14 @@ export default class GameScene extends Phaser.Scene {
         player: {
           ...this.gameState.player,
           turnActions: {
-            leaderPlacements: this.pendingPlacements,
+            leaderPlacements: this.leaderManager.getPendingPlacements(),
             upgrades: this.gameState.player.turnActions.upgrades || [],
           },
         },
       };
 
       // Clear pending placements and upgrades after successful commit
-      this.pendingPlacements = [];
+      this.leaderManager.clearPendingPlacements();
       this.selectedHistoryCase = null;
       this.gameState.player.turnActions.upgrades = [];
       this.commitTurnButton.visible = false;
@@ -1286,7 +1175,7 @@ export default class GameScene extends Phaser.Scene {
       console.log("Successfully committed turn");
 
       // Change the display mode to LEADERS for each pending placement
-      this.pendingPlacements.forEach(placement => {
+      this.leaderManager.getPendingPlacements().forEach(placement => {
         this.caseDisplayModes.set(placement.caseId, DISPLAY_MODE.LEADERS);
       });
 
@@ -1294,221 +1183,6 @@ export default class GameScene extends Phaser.Scene {
       this.schedulePoll(0);
     } catch (error) {
       console.error("Error committing turn:", error);
-    }
-  }
-
-  updateLeadersDisplay(leaders) {
-    // Track which leaders are still active
-    const activeLeaderIds = new Set();
-
-    if (!leaders || leaders.length === 0) {
-      // Hide all pooled leaders if there are none to display
-      for (const [_, display] of this.leaderPool) {
-        display.nameText.visible = false;
-        display.knowledgeText.visible = false;
-        display.uniqueText.visible = false;
-        display.bg.visible = false;
-      }
-      this.leadersBg.setSize(LEADER_CONTAINER_WIDTH, 100);
-      return;
-    }
-
-    // Calculate total height needed
-    const leaderHeight = 60; // Reduced height
-    const padding = 5; // Reduced padding
-    const totalHeight = Math.max(100, leaders.length * leaderHeight + padding * 2);
-
-    // Start from the bottom
-    let yOffset = totalHeight - padding - leaderHeight;
-
-    leaders.forEach((leader, index) => {
-      const leaderId = leader.leaderId;
-      activeLeaderIds.add(leaderId);
-
-      // Find if this leader has a pending placement
-      const pendingPlacement = this.gameState.player.turnActions.leaderPlacements.find(
-        (p) => p.leaderId === leaderId
-      );
-
-      let display;
-      if (this.leaderPool.has(leaderId)) {
-        // Update existing leader display
-        display = this.leaderPool.get(leaderId);
-
-        // Update text content with both ranges
-        display.nameText.setText(
-          `${leader.name} (R1: ${leader.range1.value} ${leader.range1.direction}, R2: ${leader.range2.value} ${leader.range2.direction})`
-        );
-        
-        // Show both range knowledge types
-        display.knowledgeText.setText(
-          `R1: ${leader.range1.knowledge.type.substring(0, 3)}: ${leader.range1.knowledge.amount} | ` +
-          `R2: ${leader.range2.knowledge.type.substring(0, 3)}: ${leader.range2.knowledge.amount}`
-        );
-
-        // Update unique ability text and add case position if placed
-        let uniqueAbilityText = `${leader.uniqueAbility.name} (${leader.uniqueAbility.usedThisEra ? "Used" : "Available"})`;
-        if (pendingPlacement) {
-          const casePosition = this.gameState.currentCases.findIndex(
-            (c) => c.caseId === pendingPlacement.caseId
-          ) + 1;
-          if (casePosition > 0) {
-            uniqueAbilityText += ` | Case: #${casePosition}`;
-          }
-        }
-        display.uniqueText.setText(uniqueAbilityText);
-        display.uniqueText.setStyle({
-          fill: leader.uniqueAbility.usedThisEra ? "#888" : "#00ff00",
-        });
-
-        // Show the display elements
-        display.nameText.visible = true;
-        display.knowledgeText.visible = true;
-        display.uniqueText.visible = true;
-        display.bg.visible = true;
-
-        // Update text sizes
-        display.nameText.setStyle({ fontSize: "12px" });
-        display.knowledgeText.setStyle({ fontSize: "10px" });
-        display.uniqueText.setStyle({ fontSize: "10px" });
-      } else {
-        // Create background for the leader
-        const bg = this.add.rectangle(0, 0, LEADER_CONTAINER_WIDTH, leaderHeight - 10, 0x333333);
-        bg.setInteractive();
-
-        // Create new leader display objects with updated range information
-        const nameText = this.add.text(10, 0, 
-          `${leader.name} (R1: ${leader.range1.value} ${leader.range1.direction}, R2: ${leader.range2.value} ${leader.range2.direction})`, {
-          fontSize: "14px",
-          fill: "#fff",
-        });
-
-        const knowledgeText = this.add.text(10, 20, 
-          `R1: ${leader.range1.knowledge.type.substring(0, 3)}: ${leader.range1.knowledge.amount} | ` +
-          `R2: ${leader.range2.knowledge.type.substring(0, 3)}: ${leader.range2.knowledge.amount}`, {
-          fontSize: "12px",
-          fill: "#aaa",
-        });
-
-        const uniqueText = this.add.text(10, 40, "", {
-          fontSize: "12px",
-          fill: "#00ff00",
-        });
-
-        // Add to container
-        this.leadersContainer.add([bg, nameText, knowledgeText, uniqueText]);
-
-        // Create display object and add to pool
-        display = { bg, nameText, knowledgeText, uniqueText };
-        this.leaderPool.set(leaderId, display);
-
-        // Set initial unique ability text with case position if placed
-        let initialUniqueText = `${leader.uniqueAbility.name} (${leader.uniqueAbility.usedThisEra ? "Used" : "Available"})`;
-        if (pendingPlacement) {
-          const casePosition = this.gameState.currentCases.findIndex(
-            (c) => c.caseId === pendingPlacement.caseId
-          ) + 1;
-          if (casePosition > 0) {
-            initialUniqueText += ` | Case: #${casePosition}`;
-          }
-        }
-        display.uniqueText.setText(initialUniqueText);
-        display.uniqueText.setStyle({
-          fill: leader.uniqueAbility.usedThisEra ? "#888" : "#00ff00",
-        });
-
-        // Setup click handler
-        bg.on("pointerdown", () => this.handleLeaderClick(leaderId, leader));
-        bg.on("pointerover", () => {
-          if (this.selectedLeader !== leaderId) {
-            bg.setFillStyle(0x444444);
-          }
-        });
-        bg.on("pointerout", () => {
-          if (this.selectedLeader !== leaderId) {
-            bg.setFillStyle(0x333333);
-          }
-        });
-
-        // Set initial selection state
-        this.updateLeaderSelection(display, leader, leaderId);
-      }
-
-      // Update positions
-      display.bg.setPosition(LEADER_CONTAINER_WIDTH / 2, yOffset + (leaderHeight - 10) / 2);
-      display.nameText.setPosition(10, yOffset);
-      display.knowledgeText.setPosition(10, yOffset + 20);
-      display.uniqueText.setPosition(10, yOffset + 40);
-
-      yOffset -= leaderHeight; // Move up for the next leader
-    });
-
-    // Hide unused leader displays
-    for (const [leaderId, display] of this.leaderPool.entries()) {
-      if (!activeLeaderIds.has(leaderId)) {
-        display.nameText.visible = false;
-        display.knowledgeText.visible = false;
-        display.uniqueText.visible = false;
-        display.bg.visible = false;
-      }
-    }
-
-    // Update background size to fit all leaders
-    this.leadersBg.setSize(LEADER_CONTAINER_WIDTH, totalHeight);
-
-    // Show commit turn button if we have any turn actions
-    this.commitTurnButton.visible =
-      this.gameState.player.turnActions.leaderPlacements.length > 0;
-  }
-
-  handleLeaderClick(leaderId, leader) {
-    if (this.selectedLeader === leaderId) {
-      // If already selected, check if we can select unique
-      if (!leader.uniqueAbility.usedThisEra && !this.selectedLeaderUnique) {
-        this.selectedLeaderUnique = true;
-        this.updateLeaderSelection(
-          this.leaderPool.get(leaderId),
-          leader,
-          leaderId
-        );
-      } else {
-        // Deselect if clicking again
-        this.selectedLeader = null;
-        this.selectedLeaderUnique = false;
-        this.updateLeaderSelection(
-          this.leaderPool.get(leaderId),
-          leader,
-          leaderId
-        );
-      }
-    } else {
-      // Select new leader
-      if (this.selectedLeader) {
-        // Deselect previous leader
-        const prevDisplay = this.leaderPool.get(this.selectedLeader);
-        if (prevDisplay) {
-          prevDisplay.bg.setFillStyle(0x333333);
-        }
-      }
-      this.selectedLeader = leaderId;
-      this.selectedLeaderUnique = false;
-      this.updateLeaderSelection(
-        this.leaderPool.get(leaderId),
-        leader,
-        leaderId
-      );
-    }
-  }
-
-  updateLeaderSelection(display, leader, leaderId) {
-    if (this.selectedLeader === leaderId) {
-      if (this.selectedLeaderUnique) {
-        display.bg.setFillStyle(0xdaa520); // Gold color for unique selection
-      } else {
-        display.bg.setFillStyle(0x666666); // Grey for normal selection
-      }
-    } else {
-      display.bg.setFillStyle(0x333333); // Default color
     }
   }
 
@@ -1666,6 +1340,12 @@ export default class GameScene extends Phaser.Scene {
       this.pollTimer.remove();
       this.pollTimer = null;
     }
+    
+    // Clean up the leader manager
+    if (this.leaderManager) {
+      this.leaderManager.shutdown();
+    }
+    
     this.shouldInitialize = false;
   }
 
