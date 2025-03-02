@@ -187,6 +187,7 @@ export default class CaseManager {
       typeText.setVisible(true);
     }
 
+    // Clear dynamic texts (excluding persistent ones)
     container.list
       .filter(
         (e) =>
@@ -200,6 +201,7 @@ export default class CaseManager {
     const displayMode =
       this.scene.caseDisplayModes.get(caseData.caseId) || DISPLAY_MODE.DEFAULT;
 
+    // Add exploration/claim points and symbols for current era cases
     if (this.scene.currentVisibleEra === this.scene.gameState.currentEra) {
       let yOffset = -30;
       if (caseData.owner) {
@@ -239,8 +241,19 @@ export default class CaseManager {
           container.add(claimText);
         }
       }
+
+      // Add symbols for revealed cases in current era
+      if (caseData.isRevealed) {
+        if (caseData.claimEffect1) {
+          this.addClaimSymbol(container);
+        }
+        if (caseData.upgradeEffect1 || caseData.upgradeEffect2) {
+          this.addUpgradeSymbol(container);
+        }
+      }
     }
 
+    // Add upgrade information for historical cases if eligible
     if (
       this.scene.currentVisibleEra !== this.scene.gameState.currentEra &&
       (this.isUpgradeable(caseData) || caseData.isUpgraded) &&
@@ -250,13 +263,14 @@ export default class CaseManager {
       this.addUpgradeInformation(container, caseData);
     }
 
+    // Add mode-specific information for current era cases
     if (this.scene.currentVisibleEra === this.scene.gameState.currentEra) {
       if (displayMode === DISPLAY_MODE.LEADER) {
         this.addLeaderInformation(container, caseData);
         if (leadersText) leadersText.setVisible(true);
       } else if (
         displayMode === DISPLAY_MODE.UPGRADE &&
-        this.isUpgradeable(caseData)
+        this.isAnUpgrade(caseData)
       ) {
         this.addUpgradeInformation(container, caseData);
         if (leadersText) leadersText.setVisible(false);
@@ -402,7 +416,6 @@ export default class CaseManager {
       );
     }
 
-    // Restore "Upgradeable" or "Upgraded" distinction
     const statusText = caseData.isUpgraded ? "Upgraded" : "Upgradeable";
     container.add(
       this.scene.add.text(
@@ -479,22 +492,48 @@ export default class CaseManager {
     );
   }
 
-  addUpgradeSymbol(container, caseData) {
+  addUpgradeSymbol(container) {
+    // Check if symbol already exists to avoid duplicates
     if (
-      !this.isUpgradeable(caseData) ||
       container.list.find(
         (item) =>
           item.type === "Text" &&
-          item.text === "ᴜ" &&
+          item.text === "U" &&
+          Math.abs(item.x - 20) < 5 &&
           Math.abs(item.y - (CARD_HEIGHT / 2 - 10)) < 5
       )
     )
       return;
+
     container.add(
       this.scene.add
-        .text(0, CARD_HEIGHT / 2 - 10, "ᴜ", {
+        .text(20, CARD_HEIGHT / 2 - 10, "U", {
           fontSize: "14px",
-          fill: "#DAA520",
+          fill: "#fff",
+          fontStyle: "bold",
+        })
+        .setOrigin(0.5)
+    );
+  }
+
+  addClaimSymbol(container) {
+    // Check if symbol already exists to avoid duplicates
+    if (
+      container.list.find(
+        (item) =>
+          item.type === "Text" &&
+          item.text === "C" &&
+          Math.abs(item.x - -20) < 5 &&
+          Math.abs(item.y - (CARD_HEIGHT / 2 - 10)) < 5
+      )
+    )
+      return;
+
+    container.add(
+      this.scene.add
+        .text(-20, CARD_HEIGHT / 2 - 10, "C", {
+          fontSize: "14px",
+          fill: "#fff",
           fontStyle: "bold",
         })
         .setOrigin(0.5)
@@ -517,6 +556,14 @@ export default class CaseManager {
           .setOrigin(0.5)
       );
     }
+  }
+
+  isAnUpgrade(caseData) {
+    return (
+      !caseData.isUpgraded &&
+      caseData.isRevealed &&
+      (caseData.upgradeEffect1 || caseData.upgradeEffect2)
+    );
   }
 
   isUpgradeable(caseData) {
