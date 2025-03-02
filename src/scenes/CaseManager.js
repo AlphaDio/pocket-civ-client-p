@@ -265,7 +265,8 @@ export default class CaseManager {
         if (leadersText) leadersText.setVisible(true);
       } else if (
         displayMode === DISPLAY_MODE.UPGRADE &&
-        this.isAnUpgrade(caseData)
+        caseData.isRevealed &&
+        (caseData.upgradeEffect1 || caseData.upgradeEffect2)
       ) {
         this.addUpgradeInformation(container, caseData);
         if (leadersText) leadersText.setVisible(false);
@@ -369,14 +370,10 @@ export default class CaseManager {
   }
 
   addUpgradeInformation(container, caseData) {
-    if (
-      !caseData.isRevealed ||
-      (!caseData.upgradeEffect1 && !caseData.upgradeEffect2)
-    )
+    if (!caseData.isRevealed || (!caseData.upgradeEffect1 && !caseData.upgradeEffect2))
       return;
 
-    const isHistoryCase =
-      this.scene.currentVisibleEra !== this.scene.gameState.currentEra;
+    const isHistoryCase = this.scene.currentVisibleEra !== this.scene.gameState.currentEra;
     const textColor = isHistoryCase ? "#DAA520" : "#fff";
 
     if (caseData.upgradeEffect1) {
@@ -408,7 +405,12 @@ export default class CaseManager {
       );
     }
 
-    const statusText = caseData.isUpgraded ? "Upgraded" : "Upgradeable";
+    const isOwner = caseData.owner === this.scene.playerUUID;
+    const statusText = caseData.isUpgraded 
+      ? "Upgraded" 
+      : isOwner 
+      ? "Upgradeable"
+      : "Upgrade";
     container.add(
       this.scene.add.text(
         -CARD_WIDTH / 2 + 10,
