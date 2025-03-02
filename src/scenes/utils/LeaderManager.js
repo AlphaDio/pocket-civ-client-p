@@ -64,7 +64,7 @@ export default class LeaderManager {
   
         // Update text content without changing font size
         display.nameText.setText(
-          `${leader.name} (Range 1: ${leader.range1.value} ${leader.range1.direction} ${leader.range1.knowledge.type.substring(0, 3)}: ${leader.range1.knowledge.amount}, Range 2: ${leader.range2.value} ${leader.range2.direction} {leader.range2.knowledge.type.substring(0, 3)}: ${leader.range2.knowledge.amount})`
+          `${leader.name} (Range 1: ${leader.range1.value} ${leader.range1.direction} ${leader.range1.knowledge.type.substring(0, 3)}: ${leader.range1.knowledge.amount}, Range 2: ${leader.range2.value} ${leader.range2.direction} ${leader.range2.knowledge.type.substring(0, 3)}: ${leader.range2.knowledge.amount})`
         );
         display.knowledgeText.setText(
           `R1: ${leader.range1.knowledge.type.substring(0, 3)}: ${leader.range1.knowledge.amount} | ` +
@@ -85,7 +85,7 @@ export default class LeaderManager {
         bg.setInteractive();
   
         const nameText = this.scene.add.text(10, 0,
-          `${leader.name} (Range 1: ${leader.range1.value} ${leader.range1.direction} ${leader.range1.knowledge.type.substring(0, 3)}: ${leader.range1.knowledge.amount}, Range 2: ${leader.range2.value} ${leader.range2.direction} {leader.range2.knowledge.type.substring(0, 3)}: ${leader.range2.knowledge.amount})`,
+          `${leader.name} (Range 1: ${leader.range1.value} ${leader.range1.direction} ${leader.range1.knowledge.type.substring(0, 3)}: ${leader.range1.knowledge.amount}, Range 2: ${leader.range2.value} ${leader.range2.direction} ${leader.range2.knowledge.type.substring(0, 3)}: ${leader.range2.knowledge.amount})`,
           { fontSize: "14px", fill: "#fff" }
         );
         const knowledgeText = this.scene.add.text(10, 20,
