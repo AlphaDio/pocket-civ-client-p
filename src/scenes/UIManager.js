@@ -124,7 +124,7 @@ export default class UIManager {
       .setVisible(false);
 
     this.scene.startGameButton = this.scene.add
-      .text(400, 150, "Start Game", {
+      .text(250, 150, "Start Game", {
         fontSize: "24px",
         fill: "#00ff00",
         backgroundColor: "#444",
