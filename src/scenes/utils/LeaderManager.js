@@ -67,8 +67,7 @@ export default class LeaderManager {
           `${leader.name} (Range 1: ${leader.range1.value} ${leader.range1.direction} ${leader.range1.knowledge.type.substring(0, 3)}: ${leader.range1.knowledge.amount}, Range 2: ${leader.range2.value} ${leader.range2.direction} ${leader.range2.knowledge.type.substring(0, 3)}: ${leader.range2.knowledge.amount})`
         );
         display.knowledgeText.setText(
-          `R1: ${leader.range1.knowledge.type.substring(0, 3)}: ${leader.range1.knowledge.amount} | ` +
-          `R2: ${leader.range2.knowledge.type.substring(0, 3)}: ${leader.range2.knowledge.amount}`
+          `R`
         );
   
         display.nameText.visible = true;
@@ -89,8 +88,7 @@ export default class LeaderManager {
           { fontSize: "14px", fill: "#fff" }
         );
         const knowledgeText = this.scene.add.text(10, 20,
-          `R1: ${leader.range1.knowledge.type.substring(0, 3)}: ${leader.range1.knowledge.amount} | ` +
-          `R2: ${leader.range2.knowledge.type.substring(0, 3)}: ${leader.range2.knowledge.amount}`,
+          `R`,
           { fontSize: "12px", fill: "#aaa" }
         );
         const uniqueText = this.scene.add.text(10, 40, "",
