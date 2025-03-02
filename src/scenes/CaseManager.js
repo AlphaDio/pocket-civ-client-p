@@ -187,7 +187,6 @@ export default class CaseManager {
       typeText.setVisible(true);
     }
 
-    // Clear dynamic texts (excluding persistent ones)
     container.list
       .filter(
         (e) =>
@@ -201,7 +200,6 @@ export default class CaseManager {
     const displayMode =
       this.scene.caseDisplayModes.get(caseData.caseId) || DISPLAY_MODE.DEFAULT;
 
-    // Add exploration/claim points and symbols for current era cases
     if (this.scene.currentVisibleEra === this.scene.gameState.currentEra) {
       let yOffset = -30;
       if (caseData.owner) {
@@ -242,7 +240,6 @@ export default class CaseManager {
         }
       }
 
-      // Add symbols for revealed cases in current era
       if (caseData.isRevealed) {
         if (caseData.claimEffect1) {
           this.addClaimSymbol(container);
@@ -253,7 +250,6 @@ export default class CaseManager {
       }
     }
 
-    // Add upgrade information for historical cases if eligible
     if (
       this.scene.currentVisibleEra !== this.scene.gameState.currentEra &&
       (this.isUpgradeable(caseData) || caseData.isUpgraded) &&
@@ -263,7 +259,6 @@ export default class CaseManager {
       this.addUpgradeInformation(container, caseData);
     }
 
-    // Add mode-specific information for current era cases
     if (this.scene.currentVisibleEra === this.scene.gameState.currentEra) {
       if (displayMode === DISPLAY_MODE.LEADER) {
         this.addLeaderInformation(container, caseData);
@@ -284,7 +279,6 @@ export default class CaseManager {
   }
 
   handleCaseClick(caseData, container, index) {
-    // Fetch the latest caseData based on the current visible era
     const latestCaseData =
       this.scene.currentVisibleEra === this.scene.gameState.currentEra
         ? this.scene.gameState.currentCases.find(
@@ -299,7 +293,6 @@ export default class CaseManager {
       return;
     }
 
-    // Handle historical cases
     if (this.scene.currentVisibleEra !== this.scene.gameState.currentEra) {
       this.handleHistoryCaseClick(
         latestCaseData,
@@ -308,7 +301,6 @@ export default class CaseManager {
       return;
     }
 
-    // Handle current era cases
     const selectedLeader = this.scene.leaderManager.getSelectedLeader();
     if (
       selectedLeader.leaderId &&
@@ -325,13 +317,13 @@ export default class CaseManager {
         this.scene.caseDisplayModes.get(latestCaseData.caseId) ||
         DISPLAY_MODE.DEFAULT;
       let newMode;
-      if (currentMode === DISPLAY_MODE.LEADER) {
+      if (currentMode === DISPLAY_MODE.DEFAULT) {
         newMode = this.isUpgradeable(latestCaseData)
           ? DISPLAY_MODE.UPGRADE
-          : DISPLAY_MODE.DEFAULT;
-      } else if (currentMode === DISPLAY_MODE.UPGRADE) {
+          : DISPLAY_MODE.LEADER;
+      } else if (currentMode === DISPLAY_MODE.LEADER) {
         newMode = DISPLAY_MODE.DEFAULT;
-      } else {
+      } else if (currentMode === DISPLAY_MODE.UPGRADE) {
         newMode = DISPLAY_MODE.LEADER;
       }
       this.scene.caseDisplayModes.set(latestCaseData.caseId, newMode);
@@ -493,7 +485,6 @@ export default class CaseManager {
   }
 
   addUpgradeSymbol(container) {
-    // Check if symbol already exists to avoid duplicates
     if (
       container.list.find(
         (item) =>
@@ -509,7 +500,7 @@ export default class CaseManager {
       this.scene.add
         .text(20, CARD_HEIGHT / 2 - 10, "U", {
           fontSize: "14px",
-          fill: "#fff",
+          fill: "#DAA520",
           fontStyle: "bold",
         })
         .setOrigin(0.5)
@@ -517,7 +508,6 @@ export default class CaseManager {
   }
 
   addClaimSymbol(container) {
-    // Check if symbol already exists to avoid duplicates
     if (
       container.list.find(
         (item) =>
@@ -558,19 +548,19 @@ export default class CaseManager {
     }
   }
 
-  isAnUpgrade(caseData) {
-    return (
-      !caseData.isUpgraded &&
-      caseData.isRevealed &&
-      (caseData.upgradeEffect1 || caseData.upgradeEffect2)
-    );
-  }
-
   isUpgradeable(caseData) {
     return (
       !caseData.isUpgraded &&
       caseData.isRevealed &&
       caseData.owner === this.scene.playerUUID &&
+      (caseData.upgradeEffect1 || caseData.upgradeEffect2)
+    );
+  }
+
+  isAnUpgrade(caseData) {
+    return (
+      !caseData.isUpgraded &&
+      caseData.isRevealed &&
       (caseData.upgradeEffect1 || caseData.upgradeEffect2)
     );
   }
