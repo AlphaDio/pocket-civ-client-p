@@ -319,7 +319,7 @@ export default class CaseManager {
         DISPLAY_MODE.DEFAULT;
       let newMode;
       if (currentMode === DISPLAY_MODE.DEFAULT) {
-        newMode = this.isUpgradeable(latestCaseData)
+        newMode = this.isAnUpgrade(latestCaseData)
           ? DISPLAY_MODE.UPGRADE
           : DISPLAY_MODE.LEADER;
       } else if (currentMode === DISPLAY_MODE.LEADER) {
