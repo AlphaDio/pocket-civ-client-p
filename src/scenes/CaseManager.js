@@ -187,7 +187,6 @@ export default class CaseManager {
       typeText.setVisible(true);
     }
 
-    // Clear dynamic texts (excluding persistent ones)
     container.list
       .filter(
         (e) =>
@@ -201,7 +200,6 @@ export default class CaseManager {
     const displayMode =
       this.scene.caseDisplayModes.get(caseData.caseId) || DISPLAY_MODE.DEFAULT;
 
-    // Always add exploration/claim points for current era cases
     if (this.scene.currentVisibleEra === this.scene.gameState.currentEra) {
       let yOffset = -30;
       if (caseData.owner) {
@@ -243,7 +241,6 @@ export default class CaseManager {
       }
     }
 
-    // Always add upgrade information for historical cases if eligible
     if (
       this.scene.currentVisibleEra !== this.scene.gameState.currentEra &&
       (this.isUpgradeable(caseData) || caseData.isUpgraded) &&
@@ -253,7 +250,6 @@ export default class CaseManager {
       this.addUpgradeInformation(container, caseData);
     }
 
-    // Add mode-specific information for current era cases
     if (this.scene.currentVisibleEra === this.scene.gameState.currentEra) {
       if (displayMode === DISPLAY_MODE.LEADER) {
         this.addLeaderInformation(container, caseData);
@@ -274,26 +270,31 @@ export default class CaseManager {
   }
 
   handleCaseClick(caseData, container, index) {
-    // Fetch the latest caseData from gameState to ensure points are current
-    const latestCaseData = this.scene.gameState.currentCases.find(
-      (c) => c.caseId === caseData.caseId
-    );
+    // Fetch the latest caseData based on the current visible era
+    const latestCaseData =
+      this.scene.currentVisibleEra === this.scene.gameState.currentEra
+        ? this.scene.gameState.currentCases.find(
+            (c) => c.caseId === caseData.caseId
+          )
+        : this.scene.gameState.historyCases[this.scene.currentVisibleEra]?.find(
+            (c) => c.caseId === caseData.caseId
+          );
+
     if (!latestCaseData) {
-      console.warn(`Case ${caseData.caseId} not found in current game state`);
+      console.warn(`Case ${caseData.caseId} not found in game state`);
       return;
     }
 
-    // Check if we're in the current era
+    // Handle historical cases
     if (this.scene.currentVisibleEra !== this.scene.gameState.currentEra) {
-      if (this.isUpgradeable(latestCaseData)) {
-        this.handleHistoryCaseClick(
-          latestCaseData,
-          container.list.find((e) => e.type === "Rectangle")
-        );
-      }
+      this.handleHistoryCaseClick(
+        latestCaseData,
+        container.list.find((e) => e.type === "Rectangle")
+      );
       return;
     }
 
+    // Handle current era cases
     const selectedLeader = this.scene.leaderManager.getSelectedLeader();
     if (
       selectedLeader.leaderId &&
