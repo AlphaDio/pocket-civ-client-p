@@ -243,18 +243,32 @@ export default class CaseManager {
       }
     }
 
-    // Add mode-specific information
-    if (displayMode === DISPLAY_MODE.LEADER) {
-      this.addLeaderInformation(container, caseData);
-      if (leadersText) leadersText.setVisible(true);
-    } else if (
-      displayMode === DISPLAY_MODE.UPGRADE &&
-      this.isUpgradeable(caseData)
+    // Always add upgrade information for historical cases if eligible
+    if (
+      this.scene.currentVisibleEra !== this.scene.gameState.currentEra &&
+      (this.isUpgradeable(caseData) || caseData.isUpgraded) &&
+      caseData.isRevealed &&
+      caseData.owner
     ) {
       this.addUpgradeInformation(container, caseData);
-      if (leadersText) leadersText.setVisible(false);
+    }
+
+    // Add mode-specific information for current era cases
+    if (this.scene.currentVisibleEra === this.scene.gameState.currentEra) {
+      if (displayMode === DISPLAY_MODE.LEADER) {
+        this.addLeaderInformation(container, caseData);
+        if (leadersText) leadersText.setVisible(true);
+      } else if (
+        displayMode === DISPLAY_MODE.UPGRADE &&
+        this.isUpgradeable(caseData)
+      ) {
+        this.addUpgradeInformation(container, caseData);
+        if (leadersText) leadersText.setVisible(false);
+      } else {
+        this.addClaimInformation(container, caseData);
+        if (leadersText) leadersText.setVisible(false);
+      }
     } else {
-      this.addClaimInformation(container, caseData);
       if (leadersText) leadersText.setVisible(false);
     }
   }
@@ -285,15 +299,13 @@ export default class CaseManager {
       selectedLeader.leaderId &&
       this.scene.leaderManager.addPendingPlacement(latestCaseData.caseId)
     ) {
-      // Leader placement occurred, set to LEADER mode
       this.scene.caseDisplayModes.set(
         latestCaseData.caseId,
         DISPLAY_MODE.LEADER
       );
-      this.updateCasesDisplay(); // Full refresh with latest gameState
+      this.updateCasesDisplay();
       this.scene.commitTurnButton.visible = true;
     } else {
-      // Toggle display mode
       const currentMode =
         this.scene.caseDisplayModes.get(latestCaseData.caseId) ||
         DISPLAY_MODE.DEFAULT;
@@ -308,7 +320,7 @@ export default class CaseManager {
         newMode = DISPLAY_MODE.LEADER;
       }
       this.scene.caseDisplayModes.set(latestCaseData.caseId, newMode);
-      this.updateCaseCard(container, latestCaseData, index); // Use latestCaseData
+      this.updateCaseCard(container, latestCaseData, index);
     }
   }
 
@@ -389,11 +401,13 @@ export default class CaseManager {
       );
     }
 
+    // Restore "Upgradeable" or "Upgraded" distinction
+    const statusText = caseData.isUpgraded ? "Upgraded" : "Upgradeable";
     container.add(
       this.scene.add.text(
         -CARD_WIDTH / 2 + 10,
         CARD_HEIGHT / 2 - 120,
-        "Upgrade",
+        statusText,
         { fontSize: "14px", fill: textColor, fontStyle: "bold" }
       )
     );

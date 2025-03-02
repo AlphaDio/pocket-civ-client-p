@@ -57,15 +57,21 @@ export default class GameScene extends Phaser.Scene {
     if (!this.shouldInitialize) return;
     console.log("GameScene: Creating game scene");
 
+    // Initialize managers
     this.leaderManager = new LeaderManager(this);
     this.uiManager = new UIManager(this);
     this.stateManager = new StateManager(this);
     this.caseManager = new CaseManager(this);
     this.eraManager = new EraManager(this);
 
+    // Set up UI and buttons
     this.uiManager.createUI();
+    this.eraManager.createEraButtons(); // Add era navigation buttons
+
+    // Start polling game state
     this.stateManager.pollGameState();
 
+    // Set up input handlers
     this.input.on("pointerdown", this.startDrag, this);
     this.input.on("pointermove", this.doDrag, this);
     this.input.on("pointerup", this.stopDrag, this);

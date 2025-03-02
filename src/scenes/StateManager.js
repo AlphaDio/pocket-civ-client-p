@@ -1,9 +1,15 @@
 import APIService from "./utils/APIService";
-import { BACKEND_URL } from "./utils/constants";
+import {
+  BACKEND_URL,
+  DEFAULT_POLL_INTERVAL,
+  ERROR_POLL_INTERVAL,
+  DISPLAY_MODE,
+} from "./utils/constants";
 
 export default class StateManager {
   constructor(scene) {
     this.scene = scene;
+    this.previousHistoryCases = new Map(); // Track previous historyCases for comparison
   }
 
   async pollGameState() {
@@ -20,11 +26,11 @@ export default class StateManager {
       );
       console.log("StateManager: Received game state:", gameState);
       this.updateGameState(gameState);
-      this.schedulePoll(5000);
+      this.schedulePoll(DEFAULT_POLL_INTERVAL);
     } catch (error) {
       console.error("StateManager: Error polling game state:", error);
       this.scene.statusText.setText("Error: Failed to fetch game state");
-      this.schedulePoll(10000);
+      this.schedulePoll(ERROR_POLL_INTERVAL);
     }
   }
 
@@ -41,6 +47,7 @@ export default class StateManager {
   }
 
   updateGameState(gameState) {
+    // Check for round change to clear turn actions
     if (
       this.scene.gameState &&
       gameState.currentRound !== this.scene.gameState.currentRound
@@ -51,10 +58,12 @@ export default class StateManager {
       this.scene.commitTurnButton.visible = false;
     }
 
+    // Preserve existing upgrades and selected history case
     const existingUpgrades =
       this.scene.gameState?.player?.turnActions?.upgrades || [];
     const existingSelectedHistoryCase = this.scene.selectedHistoryCase;
 
+    // Update game state
     this.scene.gameState = {
       ...gameState,
       player: {
@@ -71,6 +80,37 @@ export default class StateManager {
     };
     this.scene.selectedHistoryCase = existingSelectedHistoryCase;
 
+    // Detect newly added historical cases
+    if (this.scene.gameState.historyCases) {
+      const newHistoryCases = this.scene.gameState.historyCases;
+      Object.entries(newHistoryCases).forEach(([era, cases]) => {
+        const prevCases = this.previousHistoryCases.get(era) || [];
+        const prevCaseIds = new Set(prevCases.map((c) => c.caseId));
+        cases.forEach((caseData) => {
+          if (!prevCaseIds.has(caseData.caseId)) {
+            // New case added to history
+            if (
+              (this.scene.caseManager.isUpgradeable(caseData) ||
+                caseData.isUpgraded) &&
+              caseData.isRevealed &&
+              caseData.owner
+            ) {
+              this.scene.caseDisplayModes.set(
+                caseData.caseId,
+                DISPLAY_MODE.UPGRADE
+              );
+              console.log(
+                `StateManager: Set case ${caseData.caseId} to UPGRADE mode in history`
+              );
+            }
+          }
+        });
+        // Update previous history for next comparison
+        this.previousHistoryCases.set(era, cases.slice());
+      });
+    }
+
+    // Update UI elements
     this.scene.statusText.setText(`Game Status: ${gameState.status}`);
     this.scene.leaderManager.updateLeadersDisplay(gameState.player.leaders);
     this.scene.startGameButton.visible =
@@ -96,7 +136,7 @@ export default class StateManager {
       if (this.scene.currentVisibleEra === null)
         this.scene.currentVisibleEra = gameState.currentEra;
       this.scene.caseManager.updateCasesDisplay();
-      this.scene.caseManager.updateHistoryCasesDisplay();
+      this.scene.caseManager.updateHistoryCasesDisplay(); // Reflects new UPGRADE modes
       this.scene.eraManager.showEra(this.scene.currentVisibleEra);
       this.scene.uiManager.updateSelectedUpgradesText();
     } else {
@@ -104,8 +144,6 @@ export default class StateManager {
       this.scene.historyCasesContainer.removeAll(true);
       this.scene.currentCasePool.clear();
       this.scene.historyCasePool.clear();
-      this.scene.prevEraButton.setVisible(false);
-      this.scene.nextEraButton.setVisible(false);
       this.scene.eraLabel.setText("");
     }
 

@@ -1,6 +1,50 @@
+import { CARD_HEIGHT } from "./utils/constants";
+
 export default class EraManager {
   constructor(scene) {
     this.scene = scene;
+    this.prevEraButton = null;
+    this.nextEraButton = null;
+  }
+
+  createEraButtons() {
+    const screenWidth = this.scene.scale.width;
+    const screenHeight = this.scene.scale.height;
+    const casesY = Math.floor(screenHeight * 0.4); // Match GameScene's casesY
+    const buttonWidth = 48; // Smaller width
+    const buttonHeight = 48; // Smaller height, still tappable
+    const buttonPadding = { x: 8, y: 8 }; // Reduced padding
+
+    // Position buttons on the right side, stacked vertically near cases
+    const buttonX = screenWidth - buttonWidth - 20; // 20px from right edge
+    const prevButtonY = casesY - buttonHeight - 10; // Above cases, closer
+    const nextButtonY = prevButtonY + buttonHeight + 5; // Below prev, tight spacing
+
+    // Previous Era Button (Up Arrow)
+    this.prevEraButton = this.scene.add
+      .text(buttonX, prevButtonY, "⬆️", {
+        fontSize: "18px",
+        fill: "#fff",
+        backgroundColor: "#444",
+        padding: buttonPadding,
+      })
+      .setInteractive()
+      .on("pointerdown", () => this.navigateEra("prev"))
+      .setVisible(false)
+      .setOrigin(0, 0);
+
+    // Next Era Button (Era: Down Arrow)
+    this.nextEraButton = this.scene.add
+      .text(buttonX - 50, nextButtonY, "Era: ⬇️", {
+        fontSize: "18px",
+        fill: "#fff",
+        backgroundColor: "#444",
+        padding: buttonPadding,
+      })
+      .setInteractive()
+      .on("pointerdown", () => this.navigateEra("next"))
+      .setVisible(false)
+      .setOrigin(0, 0);
   }
 
   navigateEra(direction) {
@@ -22,13 +66,10 @@ export default class EraManager {
   }
 
   showEra(era) {
-    // Only clear display modes if the era is changing
     if (this.scene.currentVisibleEra !== era) {
       this.scene.caseDisplayModes.clear();
-      // Additional era-switching logic can be added here if needed
     }
 
-    // Existing logic to manage visibility and containers
     this.scene.historyCasesContainer.setVisible(false);
     this.scene.casesContainer.setVisible(false);
 
@@ -46,10 +87,16 @@ export default class EraManager {
       this.scene.eraLabel.setText(`Era ${era}`);
     }
 
-    // Update the current visible era
     this.scene.currentVisibleEra = era;
 
-    // Refresh the display
+    const allEras = [
+      ...Object.keys(this.scene.gameState.historyCases || {}).map(Number),
+      this.scene.gameState.currentEra,
+    ].sort((a, b) => a - b);
+    const currentIndex = allEras.indexOf(era);
+    this.prevEraButton.setVisible(currentIndex > 0);
+    this.nextEraButton.setVisible(currentIndex < allEras.length - 1);
+
     this.scene.caseManager.updateCasesDisplay();
     this.scene.caseManager.updateHistoryCasesDisplay();
     this.scene.uiManager.updateSelectedUpgradesText();
