@@ -122,7 +122,7 @@ export default class StateManager {
 
     const player = gameState.player;
     this.scene.playerInfo.setText(
-      `${player.name} (${player.eraPoints} EP)\nM:${player.resources.might}\nE:${player.resources.education}\nG:${player.resources.gold}\nFa:${player.resources.faith}\nFo:${player.resources.food}\nI:${player.resources.influence}`
+      `${player.name} (${player.eraPoints} EP)\nM:${player.resources.might} | E:${player.resources.education}\nG:${player.resources.gold} | Fa:${player.resources.faith}\nFo:${player.resources.food} | I:${player.resources.influence}`
     );
 
     this.scene.uiManager.updateOtherPlayersDisplay(
