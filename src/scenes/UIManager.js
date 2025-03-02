@@ -160,7 +160,7 @@ export default class UIManager {
     otherPlayers.forEach((player) => {
       const playerId = player.id;
       activePlayerIds.add(playerId);
-      const playerText = `${player.name}\nEP: ${player.eraPoints}\nM: ${player.resources.might}\nE: ${player.resources.education}\nG: ${player.resources.gold}\nFa: ${player.resources.faith}\nFo: ${player.resources.food}\nI: ${player.resources.influence}`;
+      const playerText = `${player.name}\nEP: ${player.eraPoints}\nM: ${player.resources.might} | E: ${player.resources.education}\nG: ${player.resources.gold} | Fa: ${player.resources.faith}\nFo: ${player.resources.food} | I: ${player.resources.influence}`;
 
       let display;
       if (this.scene.playerPool.has(playerId)) {
