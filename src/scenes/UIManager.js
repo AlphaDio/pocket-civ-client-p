@@ -1,3 +1,5 @@
+import { helpContent, HELP_PANEL_CONFIG } from './utils/helpContent';
+
 export default class UIManager {
   constructor(scene) {
     this.scene = scene;
@@ -143,43 +145,76 @@ export default class UIManager {
       .setVisible(true);
 
     // Create help panel
-    const panelWidth = 650;
-    const panelHeight = 300;
-    const panelX = screenWidth / 2 - panelWidth / 2;
-    const panelY = screenHeight / 2 - panelHeight / 2;
+    const panelX = screenWidth / 2 - HELP_PANEL_CONFIG.width / 2;
+    const panelY = screenHeight / 2 - HELP_PANEL_CONFIG.height / 2;
 
     this.scene.helpPanel = this.scene.add.container(panelX, panelY);
     
     // Panel background
-    this.scene.helpPanelBg = this.scene.add.rectangle(300, 0, panelWidth, panelHeight, 0x000000, 0.95);
+    this.scene.helpPanelBg = this.scene.add.rectangle(
+      300,
+      0,
+      HELP_PANEL_CONFIG.width,
+      HELP_PANEL_CONFIG.height,
+      0x000000,
+      0.95
+    );
     this.scene.helpPanelBg.setStrokeStyle(2, 0xffffff);
     this.scene.helpPanel.add(this.scene.helpPanelBg);
 
-    // Tips text
-    const tips = [
-      "• Click leader, then click a case to place that leader",
-      "• Leaders Explore or Claim cases",
-      "• Explore: gain resources",
-      "• Claim: gain effects & Era points",
-      "• Cases go to History at era end",
-      "• Upgrade claimed cases in History once for effects",
-      "• Double-click a leader for unique ability",
-      "• Player with most Era points wins",
-      "• Click on cases to see their effects",
-    ];
-
-    tips.forEach((tip, index) => {
-      const text = this.scene.add.text(0, -125 + index * 30, tip, {
-        fontSize: "16px",
+    // Create containers for each page
+    this.scene.helpPages = [];
+    
+    // Create help pages
+    Object.entries(helpContent).forEach(([_, pageContent], pageIndex) => {
+      const pageContainer = this.scene.add.container(0, 0);
+      
+      // Add title
+      const title = this.scene.add.text(0, HELP_PANEL_CONFIG.titleY, pageContent.title, {
+        fontSize: "18px",
         fill: "#ffffff",
         align: "left"
       });
-      this.scene.helpPanel.add(text);
+      pageContainer.add(title);
+
+      // Add tips
+      pageContent.tips.forEach((tip, index) => {
+        const text = this.scene.add.text(
+          0,
+          HELP_PANEL_CONFIG.tipsStartY + index * HELP_PANEL_CONFIG.tipSpacing,
+          tip,
+          {
+            fontSize: "16px",
+            fill: "#ffffff",
+            align: "left"
+          }
+        );
+        pageContainer.add(text);
+      });
+
+      pageContainer.setVisible(pageIndex === 0);
+      this.scene.helpPages.push(pageContainer);
+      this.scene.helpPanel.add(pageContainer);
     });
+
+    // Page indicator
+    this.currentHelpPage = 0;
+    this.totalHelpPages = Object.keys(helpContent).length;
+    this.scene.pageIndicator = this.scene.add.text(
+      300,
+      HELP_PANEL_CONFIG.height - HELP_PANEL_CONFIG.indicatorOffset,
+      this.getPageIndicatorText(1),
+      {
+        fontSize: "14px",
+        fill: "#ffffff",
+        align: "center"
+      }
+    ).setOrigin(0.5);
+    this.scene.helpPanel.add(this.scene.pageIndicator);
 
     // Close button
     this.scene.closeHelpButton = this.scene.add
-      .text(panelWidth - 20, 20, "×", {
+      .text(HELP_PANEL_CONFIG.width - 20, 20, "×", {
         fontSize: "24px",
         fill: "#ffffff",
       })
@@ -193,9 +228,9 @@ export default class UIManager {
       );
     this.scene.helpPanel.add(this.scene.closeHelpButton);
 
-    // Make panel interactive to close
+    // Make panel interactive to change pages
     this.scene.helpPanelBg.setInteractive()
-      .on("pointerdown", () => this.toggleHelpPanel());
+      .on("pointerdown", () => this.nextHelpPage());
 
     this.scene.helpPanel.setVisible(false);
 
@@ -307,7 +342,33 @@ export default class UIManager {
   }
 
   toggleHelpPanel() {
-    this.scene.helpPanel.setVisible(!this.scene.helpPanel.visible);
+    const isVisible = !this.scene.helpPanel.visible;
+    this.scene.helpPanel.setVisible(isVisible);
+    if (!isVisible) {
+      // Reset to first page when closing
+      this.currentHelpPage = 0;
+      this.scene.helpPages.forEach((page, index) => {
+        page.setVisible(index === 0);
+      });
+      this.scene.pageIndicator.setText(this.getPageIndicatorText(1));
+    }
+  }
+
+  getPageIndicatorText(currentPage) {
+    return `Page ${currentPage}/${this.totalHelpPages}`;
+  }
+
+  nextHelpPage() {
+    this.currentHelpPage++;
+    if (this.currentHelpPage >= this.scene.helpPages.length) {
+      this.toggleHelpPanel();
+      return;
+    }
+
+    this.scene.helpPages.forEach((page, index) => {
+      page.setVisible(index === this.currentHelpPage);
+    });
+    this.scene.pageIndicator.setText(this.getPageIndicatorText(this.currentHelpPage + 1));
   }
 
   updateUIState(gameState) {
