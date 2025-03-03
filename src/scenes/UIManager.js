@@ -5,6 +5,82 @@ export default class UIManager {
     this.scene = scene;
   }
 
+  async fetchCaseModifiers() {
+    try {
+      const response = await fetch('/case-modifiers');
+      const modifiers = await response.json();
+      return modifiers;
+    } catch (error) {
+      console.error('Error fetching case modifiers:', error);
+      return null;
+    }
+  }
+
+  formatModifiersTable(modifiers) {
+    if (!modifiers) return helpContent.page4.tips;
+
+    const header = "Case Type     | M  | S  | E  | R  | C  | D";
+    const separator = "-------------|----|----|----|----|----|----";
+    const rows = Object.entries(modifiers).map(([type, mods]) => {
+      const paddedType = type.padEnd(12);
+      return `${paddedType} | ${mods.military.toString().padStart(2)} | ${mods.science.toString().padStart(2)} | ${mods.economy.toString().padStart(2)} | ${mods.religion.toString().padStart(2)} | ${mods.cultural.toString().padStart(2)} | ${mods.diplomatic.toString().padStart(2)}`;
+    });
+
+    return [
+      header,
+      separator,
+      ...rows,
+      "",
+      "M=Military, S=Scientific, E=Economic, R=Religious, C=Cultural, D=Diplomatic"
+    ];
+  }
+
+  async updateHelpPanel() {
+    const modifiers = await this.fetchCaseModifiers();
+    const tips = this.formatModifiersTable(modifiers);
+    
+    // Update the help content
+    helpContent.page4.tips = tips;
+    
+    // Update the help panel if it's visible
+    if (this.scene.helpPanel && this.scene.helpPanel.visible) {
+      this.scene.helpPages.forEach((page, index) => {
+        if (index === 3) { // page4 is at index 3
+          // Clear existing content
+          page.removeAll(true);
+          
+          // Add title
+          const title = this.scene.add.text(10, 10, helpContent.page4.title, {
+            fontSize: Math.min(14, this.scene.sys.game.config.width * 0.04) + "px",
+            fill: "#ffffff",
+            align: "left"
+          });
+          page.add(title);
+
+          // Add tips with dynamic font size and positioning
+          const titleHeight = 30;
+          const contentArea = this.scene.helpPanelBg.height - titleHeight - HELP_PANEL_CONFIG.indicatorOffset;
+          const tipSpacing = Math.min(HELP_PANEL_CONFIG.tipSpacing, contentArea / tips.length);
+          
+          tips.forEach((tip, i) => {
+            const text = this.scene.add.text(
+              10,
+              titleHeight + i * tipSpacing,
+              tip,
+              {
+                fontSize: Math.min(11, this.scene.sys.game.config.width * 0.03) + "px",
+                fill: "#ffffff",
+                align: "left",
+                wordWrap: { width: this.scene.helpPanelBg.width - 40 }
+              }
+            );
+            page.add(text);
+          });
+        }
+      });
+    }
+  }
+
   createUI() {
     console.log("UIManager: Setting up UI components");
     const screenWidth = this.scene.scale.width;
@@ -104,24 +180,6 @@ export default class UIManager {
       )
       .on("pointerout", () =>
         this.scene.commitTurnButton.setStyle({ fill: "#00ff00" })
-      )
-      .setVisible(false);
-
-    this.scene.forceProcessButton = this.scene.add
-      .text(screenWidth - 10, screenHeight - 50, "Force Turn", {
-        fontSize: "18px",
-        fill: "#ff0000",
-        backgroundColor: "#444",
-        padding: { x: 10, y: 5 },
-      })
-      .setOrigin(1, 1)
-      .setInteractive()
-      .on("pointerdown", () => this.scene.stateManager.handleForceProcessTurn())
-      .on("pointerover", () =>
-        this.scene.forceProcessButton.setStyle({ fill: "#ff8888" })
-      )
-      .on("pointerout", () =>
-        this.scene.forceProcessButton.setStyle({ fill: "#ff0000" })
       )
       .setVisible(false);
 
@@ -365,6 +423,9 @@ export default class UIManager {
         page.setVisible(index === 0);
       });
       this.scene.pageIndicator.setText(this.getPageIndicatorText(1));
+    } else {
+      // Update modifiers when opening
+      this.updateHelpPanel();
     }
   }
 

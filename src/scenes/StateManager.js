@@ -116,9 +116,7 @@ export default class StateManager {
     this.scene.startGameButton.visible =
       gameState.status === "setup" &&
       gameState.player.uuid === gameState.creator;
-    this.scene.forceProcessButton.visible =
-      gameState.status === "in_progress" &&
-      gameState.player.uuid === gameState.creator;
+
     this.scene.helpButton.visible = gameState.status === "in_progress";
 
     const player = gameState.player;
