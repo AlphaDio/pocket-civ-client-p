@@ -13,7 +13,7 @@ export default class UIManager {
       10,
       10,
       "Loading game state...",
-      { fontSize: "18px", fill: "#fff" }
+      { fontSize: "14px", fill: "#fff" }
     );
     this.scene.selectedUpgradesText = this.scene.add
       .text(screenWidth / 2, 10, "", {
@@ -84,7 +84,7 @@ export default class UIManager {
       10,
       leadersY - 20,
       `Your ID: ${this.scene.playerUUID.slice(-3)}`,
-      { fontSize: "12px", fill: "#aaa" }
+      { fontSize: "14px", fill: "#DAA520" }
     );
 
     this.scene.commitTurnButton = this.scene.add
@@ -106,7 +106,7 @@ export default class UIManager {
       .setVisible(false);
 
     this.scene.forceProcessButton = this.scene.add
-      .text(screenWidth - 10, screenHeight - 50, "Force Process", {
+      .text(screenWidth - 10, screenHeight - 50, "Force Turn", {
         fontSize: "18px",
         fill: "#ff0000",
         backgroundColor: "#444",
@@ -122,6 +122,81 @@ export default class UIManager {
         this.scene.forceProcessButton.setStyle({ fill: "#ff0000" })
       )
       .setVisible(false);
+
+    // Add help button
+    this.scene.helpButton = this.scene.add
+      .text(screenWidth - 10, screenHeight - 80, "?", {
+        fontSize: "24px",
+        fill: "#ffffff",
+        backgroundColor: "#444",
+        padding: { x: 10, y: 5 },
+      })
+      .setOrigin(1, 1)
+      .setInteractive()
+      .on("pointerdown", () => this.toggleHelpPanel())
+      .on("pointerover", () =>
+        this.scene.helpButton.setStyle({ fill: "#cccccc" })
+      )
+      .on("pointerout", () =>
+        this.scene.helpButton.setStyle({ fill: "#ffffff" })
+      )
+      .setVisible(true);
+
+    // Create help panel
+    const panelWidth = 650;
+    const panelHeight = 300;
+    const panelX = screenWidth / 2 - panelWidth / 2;
+    const panelY = screenHeight / 2 - panelHeight / 2;
+
+    this.scene.helpPanel = this.scene.add.container(panelX, panelY);
+    
+    // Panel background
+    this.scene.helpPanelBg = this.scene.add.rectangle(300, 0, panelWidth, panelHeight, 0x000000, 0.95);
+    this.scene.helpPanelBg.setStrokeStyle(2, 0xffffff);
+    this.scene.helpPanel.add(this.scene.helpPanelBg);
+
+    // Tips text
+    const tips = [
+      "• Click leader, then click a case to place that leader",
+      "• Leaders Explore or Claim cases",
+      "• Explore: gain resources",
+      "• Claim: gain effects & Era points",
+      "• Cases go to History at era end",
+      "• Upgrade claimed cases in History once for effects",
+      "• Double-click a leader for unique ability",
+      "• Player with most Era points wins"
+    ];
+
+    tips.forEach((tip, index) => {
+      const text = this.scene.add.text(0, -125 + index * 30, tip, {
+        fontSize: "16px",
+        fill: "#ffffff",
+        align: "left"
+      });
+      this.scene.helpPanel.add(text);
+    });
+
+    // Close button
+    this.scene.closeHelpButton = this.scene.add
+      .text(panelWidth - 20, 20, "×", {
+        fontSize: "24px",
+        fill: "#ffffff",
+      })
+      .setInteractive()
+      .on("pointerdown", () => this.toggleHelpPanel())
+      .on("pointerover", () =>
+        this.scene.closeHelpButton.setStyle({ fill: "#cccccc" })
+      )
+      .on("pointerout", () =>
+        this.scene.closeHelpButton.setStyle({ fill: "#ffffff" })
+      );
+    this.scene.helpPanel.add(this.scene.closeHelpButton);
+
+    // Make panel interactive to close
+    this.scene.helpPanelBg.setInteractive()
+      .on("pointerdown", () => this.toggleHelpPanel());
+
+    this.scene.helpPanel.setVisible(false);
 
     this.scene.startGameButton = this.scene.add
       .text(250, 150, "Start Game", {
@@ -228,5 +303,16 @@ export default class UIManager {
     this.scene.selectedUpgradesText.setText(
       `Selected Upgrades: ${selectedCases.join(", ")}`
     );
+  }
+
+  toggleHelpPanel() {
+    this.scene.helpPanel.setVisible(!this.scene.helpPanel.visible);
+  }
+
+  updateUIState(gameState) {
+    // Update help button visibility based on game state
+    if (this.scene.helpButton) {
+      this.scene.helpButton.setVisible(gameState?.status === 'IN_PROGRESS');
+    }
   }
 }
