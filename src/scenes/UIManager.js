@@ -164,7 +164,8 @@ export default class UIManager {
       "• Cases go to History at era end",
       "• Upgrade claimed cases in History once for effects",
       "• Double-click a leader for unique ability",
-      "• Player with most Era points wins"
+      "• Player with most Era points wins",
+      "• Click on cases to see their effects",
     ];
 
     tips.forEach((tip, index) => {
