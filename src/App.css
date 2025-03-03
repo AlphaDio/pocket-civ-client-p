@@ -1,14 +1,17 @@
 #root {
-  max-width: 1280px;
-  /* margin: 0 auto; */
-  padding: 5px;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
   text-align: center;
+  min-height: 100vh;
+  overflow-x: auto;
 }
 
 #game-container {
-  width: 800px;
-  height: 600px;
+  width: 95vw;
+  height: 95vh;
   margin: 0 auto;
+  position: relative;
 }
 
 .card {
