@@ -9,8 +9,8 @@ function Game() {
   useEffect(() => {
     const config = {
         type: Phaser.AUTO,
-        width: window.innerWidth,
-        height: window.innerHeight,
+        width: window.innerWidth * 0.95,
+        height: window.innerHeight * 0.95,
         backgroundColor: '#222222',
         parent: 'game-container',
         dom: {
