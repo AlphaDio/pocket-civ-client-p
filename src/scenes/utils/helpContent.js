@@ -9,6 +9,7 @@ export const HELP_PANEL_CONFIG = {
 
 export const helpContent = {
   page1: {
+    position: 1,
     title: "Game Basics:",
     tips: [
       "• Click leader, then click a case to place that leader",
@@ -23,20 +24,22 @@ export const helpContent = {
     ]
   },
   page2: {
+    position: 2,
     title: "How to Read Leader Info:",
     tips: [
       "Each leader shows two ranges (R1 and R2):",
-      "• Range format: (1: X Dir Range; 2: Y Dir Range)",
+      "• Range format: (R1: X Dir Range; R2: Y Dir Range)",
       "  where X and Y are the number of cases affected",
       "• Dir can be: Uni (left-to-right), Left, or Right",
       "• Knowledge format: R1: Type: +N; R2: Type: +M",
       "  where Type is the resource type and N, M are amounts",
-      "• Example: (1: 2 Uni Range; 2: 1 Left Range)",
+      "• Example: (R1: 2 Uni Range; R2: 1 Left Range)",
       "  means Range 1 affects 2 cases left-to-right",
       "  and Range 2 affects 1 case to the left"
     ]
   },
   page3: {
+    position: 3,
     title: "Resources:",
     tips: [
       "• M for Might",
@@ -47,6 +50,27 @@ export const helpContent = {
       "• I for Influence",
       "",
       "Resources are used to purchase updates."
+    ]
+  },
+  page4: {
+    position: 4,
+    title: "Case Type Knowledge Modifiers:",
+    tips: [
+      "Case Type     | M  | S  | E  | R  | C  | D",
+      "-------------|----|----|----|----|----|----",
+      "City         | +2 | -2 | +2 | +1 | +2 | +2",
+      "Conquest     | +3 | +1 | -3 | -1 | -2 | -3",
+      "Wonder       |  0 | +2 | +1 | +2 | +3 | +1",
+      "Technology   | +1 | +3 | +2 |  0 | +1 | +1",
+      "Discovery    | +1 | +3 | +2 |  0 | +1 | +1",
+      "Great Work   | -2 | +1 | +1 | +2 | +3 | +2",
+      "Strategic    | +3 | +1 | +2 |  0 |  0 | +1",
+      "Hub          | -2 |  0 | +2 | +1 | +1 | +3",
+      "Growth       | -2 | +1 | +3 |  0 | +2 | +1",
+      "God          | +1 | -2 | -3 | +1 | +2 |  0",
+      "Great People | -3 |  0 |  0 | +2 | +1 | +2",
+      "",
+      "M=Military, S=Scientific, E=Economic, R=Religious, C=Cultural, D=Diplomatic"
     ]
   }
 }; 
