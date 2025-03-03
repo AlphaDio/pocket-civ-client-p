@@ -1,9 +1,13 @@
 export const HELP_PANEL_CONFIG = {
-  width: 650,
-  height: 375,
+  widthPercent: 0.8, // 80% of screen width
+  heightPercent: 0.8, // 80% of screen height
+  minWidth: 300, // minimum width for very small screens
+  minHeight: 200, // minimum height for very small screens
+  maxWidth: 650, // maximum width for large screens
+  maxHeight: 375, // maximum height for large screens
   titleY: -165,
   tipsStartY: -145,
-  tipSpacing: 16,
+  tipSpacing: 20,
   indicatorOffset: 40
 };
 

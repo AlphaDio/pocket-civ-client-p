@@ -145,17 +145,26 @@ export default class UIManager {
       .setVisible(true);
 
     // Create help panel
-    const panelX = screenWidth / 2 - HELP_PANEL_CONFIG.width / 2;
-    const panelY = screenHeight / 2 - HELP_PANEL_CONFIG.height / 2;
+    const panelWidth = Math.min(
+      Math.max(screenWidth * HELP_PANEL_CONFIG.widthPercent, HELP_PANEL_CONFIG.minWidth),
+      HELP_PANEL_CONFIG.maxWidth
+    );
+    const panelHeight = Math.min(
+      Math.max(screenHeight * HELP_PANEL_CONFIG.heightPercent, HELP_PANEL_CONFIG.minHeight),
+      HELP_PANEL_CONFIG.maxHeight
+    );
+    
+    const panelX = screenWidth / 2 - panelWidth / 2;
+    const panelY = screenHeight / 2 - panelHeight / 2;
 
     this.scene.helpPanel = this.scene.add.container(panelX, panelY);
     
     // Panel background
     this.scene.helpPanelBg = this.scene.add.rectangle(
-      300,
-      0,
-      HELP_PANEL_CONFIG.width,
-      HELP_PANEL_CONFIG.height,
+      panelWidth / 2,
+      170,
+      panelWidth,
+      panelHeight,
       0x000000,
       0.95
     );
@@ -170,24 +179,28 @@ export default class UIManager {
       const pageContainer = this.scene.add.container(0, 0);
       
       // Add title
-      const title = this.scene.add.text(0, HELP_PANEL_CONFIG.titleY, pageContent.title, {
-        fontSize: "14px",
+      const title = this.scene.add.text(10, 10, pageContent.title, {
+        fontSize: Math.min(14, screenWidth * 0.04) + "px",
         fill: "#ffffff",
         align: "left"
       });
       pageContainer.add(title);
 
-      // Add tips
+      // Add tips with dynamic font size and positioning
+      const titleHeight = 30;
+      const contentArea = panelHeight - titleHeight - HELP_PANEL_CONFIG.indicatorOffset;
+      const tipSpacing = Math.min(HELP_PANEL_CONFIG.tipSpacing, contentArea / pageContent.tips.length);
+      
       pageContent.tips.forEach((tip, index) => {
         const text = this.scene.add.text(
-          0,
-          HELP_PANEL_CONFIG.tipsStartY + index * HELP_PANEL_CONFIG.tipSpacing,
+          10,
+          titleHeight + index * tipSpacing,
           tip,
           {
-            fontSize: "11px",
+            fontSize: Math.min(11, screenWidth * 0.03) + "px",
             fill: "#ffffff",
             align: "left",
-            wordWrap: { width: HELP_PANEL_CONFIG.width - 40 }
+            wordWrap: { width: panelWidth - 40 }
           }
         );
         pageContainer.add(text);
@@ -202,11 +215,11 @@ export default class UIManager {
     this.currentHelpPage = 0;
     this.totalHelpPages = Object.keys(helpContent).length;
     this.scene.pageIndicator = this.scene.add.text(
-      300,
-      HELP_PANEL_CONFIG.height - HELP_PANEL_CONFIG.indicatorOffset,
+      panelWidth / 2,
+      panelHeight - HELP_PANEL_CONFIG.indicatorOffset,
       this.getPageIndicatorText(1),
       {
-        fontSize: "12px",
+        fontSize: Math.min(12, screenWidth * 0.035) + "px",
         fill: "#ffffff",
         align: "center"
       }
@@ -215,8 +228,8 @@ export default class UIManager {
 
     // Close button
     this.scene.closeHelpButton = this.scene.add
-      .text(HELP_PANEL_CONFIG.width - 20, 20, "×", {
-        fontSize: "20px",
+      .text(panelWidth - 20, 20, "×", {
+        fontSize: Math.min(20, screenWidth * 0.05) + "px",
         fill: "#ffffff",
       })
       .setInteractive()
