@@ -264,7 +264,7 @@ export default class UIManager {
       return;
     }
 
-    let xOffset = 10;
+    let xOffset = 0;
     const padding = 10;
     const playerWidth = 100;
 
