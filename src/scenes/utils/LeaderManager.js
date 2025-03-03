@@ -17,7 +17,7 @@ export default class LeaderManager {
 
   formatLeaderText(leader) {
     return {
-      nameText: `${leader.name} (1: ${leader.range1.value} ${leader.range1.direction} Range; 2: ${leader.range2.value} ${leader.range2.direction} Range)`,
+      nameText: `${leader.name} (R1: ${leader.range1.value} ${leader.range1.direction} Range; R2: ${leader.range2.value} ${leader.range2.direction} Range)`,
       knowledgeText: `R1: ${leader.range1.knowledge.type.substring(0, 3)}: +${leader.range1.knowledge.amount}; R2: ${leader.range2.knowledge.type.substring(0, 3)}: +${leader.range2.knowledge.amount}`
     };
   }
