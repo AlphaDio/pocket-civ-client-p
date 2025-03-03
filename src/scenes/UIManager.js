@@ -171,7 +171,7 @@ export default class UIManager {
       
       // Add title
       const title = this.scene.add.text(0, HELP_PANEL_CONFIG.titleY, pageContent.title, {
-        fontSize: "18px",
+        fontSize: "14px",
         fill: "#ffffff",
         align: "left"
       });
@@ -184,9 +184,10 @@ export default class UIManager {
           HELP_PANEL_CONFIG.tipsStartY + index * HELP_PANEL_CONFIG.tipSpacing,
           tip,
           {
-            fontSize: "16px",
+            fontSize: "11px",
             fill: "#ffffff",
-            align: "left"
+            align: "left",
+            wordWrap: { width: HELP_PANEL_CONFIG.width - 40 }
           }
         );
         pageContainer.add(text);
@@ -205,7 +206,7 @@ export default class UIManager {
       HELP_PANEL_CONFIG.height - HELP_PANEL_CONFIG.indicatorOffset,
       this.getPageIndicatorText(1),
       {
-        fontSize: "14px",
+        fontSize: "12px",
         fill: "#ffffff",
         align: "center"
       }
@@ -215,7 +216,7 @@ export default class UIManager {
     // Close button
     this.scene.closeHelpButton = this.scene.add
       .text(HELP_PANEL_CONFIG.width - 20, 20, "×", {
-        fontSize: "24px",
+        fontSize: "20px",
         fill: "#ffffff",
       })
       .setInteractive()

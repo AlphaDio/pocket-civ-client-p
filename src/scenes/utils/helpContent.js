@@ -2,8 +2,8 @@ export const HELP_PANEL_CONFIG = {
   width: 650,
   height: 375,
   titleY: -165,
-  tipsStartY: -125,
-  tipSpacing: 30,
+  tipsStartY: -145,
+  tipSpacing: 16,
   indicatorOffset: 40
 };
 
