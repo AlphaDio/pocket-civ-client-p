@@ -8,6 +8,18 @@ export default class LeaderManager {
     this.selectedLeader = null; // Track currently selected leader
     this.selectedLeaderUnique = false; // Track if unique ability is selected
     this.pendingPlacements = []; // Track local leader placements before commit
+    
+    // Height constants
+    this.BASE_LEADER_HEIGHT = 80;
+    this.CONTAINER_PADDING = 5;
+    this.MIN_CONTAINER_HEIGHT = 100;
+  }
+
+  formatLeaderText(leader) {
+    return {
+      nameText: `${leader.name} (1: ${leader.range1.value} ${leader.range1.direction} Range; 2: ${leader.range2.value} ${leader.range2.direction} Range)`,
+      knowledgeText: `R1: ${leader.range1.knowledge.type.substring(0, 3)}: +${leader.range1.knowledge.amount}; R2: ${leader.range2.knowledge.type.substring(0, 3)}: +${leader.range2.knowledge.amount}`
+    };
   }
 
   createLeadersContainer(x, y) {
@@ -26,6 +38,23 @@ export default class LeaderManager {
     return this.leadersContainer;
   }
 
+  calculateLeaderHeight(leaderId) {
+    return (this.selectedLeader === leaderId && this.selectedLeaderUnique)
+      ? this.BASE_LEADER_HEIGHT
+      : this.BASE_LEADER_HEIGHT;
+  }
+
+  calculateTotalContainerHeight(leaders) {
+    if (!leaders || leaders.length === 0) {
+      return this.MIN_CONTAINER_HEIGHT;
+    }
+
+    return Math.max(
+      this.MIN_CONTAINER_HEIGHT,
+      leaders.length * this.BASE_LEADER_HEIGHT + this.CONTAINER_PADDING * 2
+    );
+  }
+
   updateLeadersDisplay(leaders) {
     const activeLeaderIds = new Set();
   
@@ -36,19 +65,12 @@ export default class LeaderManager {
         display.uniqueText.visible = false;
         display.bg.visible = false;
       }
-      this.leadersBg.setSize(LEADER_CONTAINER_WIDTH, 100);
+      this.leadersBg.setSize(LEADER_CONTAINER_WIDTH, this.MIN_CONTAINER_HEIGHT);
       return;
     }
   
-    const baseLeaderHeight = 80;
-    const uniqueEffectExtraHeight = 20;
-    const padding = 5;
-  
-    const totalHeight = Math.max(
-      100,
-      leaders.length * (baseLeaderHeight + (this.selectedLeaderUnique ? uniqueEffectExtraHeight : 0)) + padding * 2
-    );
-    let yOffset = totalHeight - padding - baseLeaderHeight;
+    const totalHeight = this.calculateTotalContainerHeight(leaders);
+    let yOffset = totalHeight - this.CONTAINER_PADDING - this.BASE_LEADER_HEIGHT;
   
     leaders.forEach((leader, index) => {
       const leaderId = leader.leaderId;
@@ -63,12 +85,9 @@ export default class LeaderManager {
         display = this.leaderPool.get(leaderId);
   
         // Update text content without changing font size
-        display.nameText.setText(
-          `${leader.name} (Range 1: ${leader.range1.value} ${leader.range1.direction} ${leader.range1.knowledge.type.substring(0, 3)}: ${leader.range1.knowledge.amount}, Range 2: ${leader.range2.value} ${leader.range2.direction} ${leader.range2.knowledge.type.substring(0, 3)}: ${leader.range2.knowledge.amount})`
-        );
-        display.knowledgeText.setText(
-          `R`
-        );
+        const formattedText = this.formatLeaderText(leader);
+        display.nameText.setText(formattedText.nameText);
+        display.knowledgeText.setText(formattedText.knowledgeText);
   
         display.nameText.visible = true;
         display.knowledgeText.visible = true;
@@ -77,19 +96,18 @@ export default class LeaderManager {
   
         // Ensure font sizes remain consistent with initial creation
         display.nameText.setStyle({ fontSize: "14px", fill: "#fff" });
-        display.knowledgeText.setStyle({ fontSize: "12px", fill: "#aaa" });
+        display.knowledgeText.setStyle({ fontSize: "14px", fill: "#fff" });
         display.uniqueText.setStyle({ fontSize: "15px", fill: "#00ff00" });
       } else {
-        const bg = this.scene.add.rectangle(0, 0, LEADER_CONTAINER_WIDTH, baseLeaderHeight - 10, 0x333333);
+        const bg = this.scene.add.rectangle(0, 0, LEADER_CONTAINER_WIDTH, this.BASE_LEADER_HEIGHT - 10, 0x333333);
         bg.setInteractive();
   
-        const nameText = this.scene.add.text(10, 0,
-          `${leader.name} (Range 1: ${leader.range1.value} ${leader.range1.direction} ${leader.range1.knowledge.type.substring(0, 3)}: ${leader.range1.knowledge.amount}, Range 2: ${leader.range2.value} ${leader.range2.direction} ${leader.range2.knowledge.type.substring(0, 3)}: ${leader.range2.knowledge.amount})`,
+        const formattedText = this.formatLeaderText(leader);
+        const nameText = this.scene.add.text(10, 0, formattedText.nameText,
           { fontSize: "14px", fill: "#fff" }
         );
-        const knowledgeText = this.scene.add.text(10, 20,
-          `R`,
-          { fontSize: "12px", fill: "#aaa" }
+        const knowledgeText = this.scene.add.text(10, 20, formattedText.knowledgeText,
+          { fontSize: "14px", fill: "#fff" }
         );
         const uniqueText = this.scene.add.text(10, 40, "",
           { fontSize: "15px", fill: "#00ff00" }
@@ -115,15 +133,11 @@ export default class LeaderManager {
         this.updateLeaderSelection(display, leader, leaderId);
       }
   
-      const currentLeaderHeight = (this.selectedLeader === leaderId && this.selectedLeaderUnique)
-        ? baseLeaderHeight + uniqueEffectExtraHeight
-        : baseLeaderHeight;
-  
-      display.bg.setPosition(LEADER_CONTAINER_WIDTH / 2, yOffset + (currentLeaderHeight - 10) / 2);
-      display.bg.setSize(LEADER_CONTAINER_WIDTH, currentLeaderHeight - 10);
+      display.bg.setPosition(LEADER_CONTAINER_WIDTH / 2, yOffset + (this.BASE_LEADER_HEIGHT - 10) / 2);
+      display.bg.setSize(LEADER_CONTAINER_WIDTH, this.BASE_LEADER_HEIGHT - 10);
       display.nameText.setPosition(10, yOffset);
-      display.knowledgeText.setPosition(10, yOffset + 20);
-      display.uniqueText.setPosition(10, yOffset + 40);
+      display.knowledgeText.setPosition(10, yOffset + 30);
+      display.uniqueText.setPosition(10, yOffset + 45);
   
       // Prevent text wrapping or scaling by setting a fixed width and word wrap
       const textWidth = LEADER_CONTAINER_WIDTH - 20; // 10px padding on each side
@@ -131,7 +145,7 @@ export default class LeaderManager {
       display.knowledgeText.setWordWrapWidth(textWidth, true);
       display.uniqueText.setWordWrapWidth(textWidth, true);
   
-      yOffset -= currentLeaderHeight;
+      yOffset -= this.BASE_LEADER_HEIGHT;
     });
   
     for (const [leaderId, display] of this.leaderPool.entries()) {

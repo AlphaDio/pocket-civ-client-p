@@ -71,7 +71,7 @@ export default class UIManager {
       .setVisible(false);
 
     this.scene.eraLabel = this.scene.add
-      .text(screenWidth / 2, casesY - 30, "", {
+      .text(screenWidth / 2, 20, "", {
         fontSize: "18px",
         fill: "#fff",
       })
