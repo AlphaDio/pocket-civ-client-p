@@ -13,7 +13,7 @@ export const helpContent = {
     title: "Game Basics:",
     tips: [
       "• Click leader, then click a case to place that leader",
-      "• Leaders Explore or Claim cases",
+      "• Leaders Explore or Claim cases by applying knowledge",
       "• Explore: gain resources",
       "• Claim: gain effects & Era points",
       "• Cases go to History at era end",
