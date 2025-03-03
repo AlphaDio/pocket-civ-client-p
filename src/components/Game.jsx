@@ -10,7 +10,7 @@ function Game() {
     const config = {
         type: Phaser.AUTO,
         width: window.innerWidth * 0.95,
-        height: window.innerHeight * 0.95,
+        height: window.innerHeight * 0.75,
         backgroundColor: '#222222',
         parent: 'game-container',
         dom: {
