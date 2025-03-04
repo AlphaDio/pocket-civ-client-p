@@ -9,8 +9,8 @@ function Game() {
   useEffect(() => {
     const config = {
         type: Phaser.AUTO,
-        width: window.innerWidth * 0.95,
-        height: window.innerHeight * 0.75,
+        width: window.innerWidth * 1,
+        height: window.innerHeight * 1,
         backgroundColor: '#222222',
         parent: 'game-container',
         dom: {
@@ -31,7 +31,7 @@ function Game() {
     };
   }, []); // Empty dependency array means this effect runs once on mount
 
-  return <div id="game-container" style={{ width: '95vw', height: '95vh' }} />;
+  return <div id="game-container" style={{ width: '90vw', height: '95vh' }} />;
 }
 
 export default Game; 
