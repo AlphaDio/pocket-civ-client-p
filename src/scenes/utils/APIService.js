@@ -142,6 +142,27 @@ class APIService {
       return false;
     }
   }
+
+  /**
+   * Fetches the case modifiers from the server
+   * @returns {Promise<Object|null>} - The case modifiers object or null if the request fails
+   */
+  async fetchCaseModifiers() {
+    console.log("APIService: Fetching case modifiers");
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/games/case-modifiers`);
+      if (!response.ok) {
+        console.error("APIService: Failed to fetch case modifiers:", response.status);
+        return null;
+      }
+      const modifiers = await response.json();
+      console.log("APIService: Received case modifiers:", modifiers);
+      return modifiers;
+    } catch (error) {
+      console.error("APIService: Error fetching case modifiers:", error);
+      return null;
+    }
+  }
 }
 
 // Export a singleton instance

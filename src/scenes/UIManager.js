@@ -1,4 +1,5 @@
 import { helpContent, HELP_PANEL_CONFIG } from './utils/helpContent';
+import APIService from './utils/APIService';
 
 export default class UIManager {
   constructor(scene) {
@@ -6,14 +7,7 @@ export default class UIManager {
   }
 
   async fetchCaseModifiers() {
-    try {
-      const response = await fetch('/case-modifiers');
-      const modifiers = await response.json();
-      return modifiers;
-    } catch (error) {
-      console.error('Error fetching case modifiers:', error);
-      return null;
-    }
+    return await APIService.fetchCaseModifiers();
   }
 
   formatModifiersTable(modifiers) {
