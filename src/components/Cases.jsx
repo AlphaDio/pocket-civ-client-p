@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { BACKEND_URL } from '../scenes/utils/constants';
+import APIService from '../scenes/utils/APIService';
 import CaseDetails from './CaseDetails';
 import './Cases.css';
 
@@ -20,8 +21,7 @@ const Cases = () => {
 
   const fetchCases = async () => {
     try {
-      const response = await fetch(BACKEND_URL + '/api/games/cases');
-      const data = await response.json();
+      const data = await APIService.fetchCases();
       console.log('Fetched cases:', data);
       setCases(data);
     } catch (error) {
@@ -31,14 +31,9 @@ const Cases = () => {
 
   const fetchSingleCase = async () => {
     try {
-      console.log('Fetching case with ID:', caseId);
-      const response = await fetch(BACKEND_URL + `/api/games/cases/${caseId}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
+      const data = await APIService.fetchSingleCase(caseId);
       console.log('Fetched single case:', data);
-      setSelectedCase(data[0]);
+      setSelectedCase(data);
     } catch (error) {
       console.error('Error fetching case:', error);
       setSelectedCase(null);

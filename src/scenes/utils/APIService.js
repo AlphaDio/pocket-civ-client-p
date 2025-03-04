@@ -150,7 +150,7 @@ class APIService {
   async fetchCaseModifiers() {
     console.log("APIService: Fetching case modifiers");
     try {
-      const response = await fetch(`${BACKEND_URL}/api/games/case-modifiers`);
+      const response = await fetch(`${BACKEND_URL}/api/data/case-modifiers`);
       if (!response.ok) {
         console.error("APIService: Failed to fetch case modifiers:", response.status);
         return null;
@@ -161,6 +161,49 @@ class APIService {
     } catch (error) {
       console.error("APIService: Error fetching case modifiers:", error);
       return null;
+    }
+  }
+
+  /**
+   * Fetches all cases from the server
+   * @returns {Promise<Array>} - Array of case objects
+   */
+  async fetchCases() {
+    console.log("APIService: Fetching all cases");
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/data/cases`);
+      if (!response.ok) {
+        console.error("APIService: Failed to fetch cases:", response.status);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const cases = await response.json();
+      console.log("APIService: Received cases:", cases);
+      return cases;
+    } catch (error) {
+      console.error("APIService: Error fetching cases:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches a single case by ID
+   * @param {string} caseId - The ID of the case to fetch
+   * @returns {Promise<Object>} - The case object
+   */
+  async fetchSingleCase(caseId) {
+    console.log("APIService: Fetching case with ID:", caseId);
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/data/cases/${caseId}`);
+      if (!response.ok) {
+        console.error("APIService: Failed to fetch case:", response.status);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log("APIService: Received case:", data);
+      return data[0];
+    } catch (error) {
+      console.error("APIService: Error fetching case:", error);
+      throw error;
     }
   }
 }
