@@ -1,82 +1,106 @@
 .cases-container {
-  padding: 20px;
+  padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
 }
 
 .cases-title {
-  margin-bottom: 30px;
   text-align: center;
-  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  color: #2c3e50;
+  margin-bottom: 2rem;
+  font-size: 2.5rem;
 }
 
 .cases-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
-  padding: 0 10px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
 }
 
 .case-card {
-  border: 1px solid #e0e0e0;
+  background: white;
   border-radius: 8px;
-  padding: 20px;
-  background-color: #ffffff;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  transition: transform 0.2s ease-in-out;
-  cursor: pointer;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: block;
 }
 
 .case-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-4px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .case-title {
-  margin: 0 0 15px 0;
-  font-size: clamp(1.1rem, 2vw, 1.3rem);
-  color: #333;
+  margin: 0 0 1rem 0;
+  color: #2c3e50;
+  font-size: 1.5rem;
 }
 
 .case-tags {
   display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 15px;
 }
 
 .case-type-tag {
-  background-color: #f0f0f0;
-  padding: 4px 8px;
-  border-radius: 4px;
+  background: #3498db;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 16px;
   font-size: 0.9rem;
 }
 
 .case-era-tag {
-  background-color: #e8f0fe;
-  padding: 4px 8px;
-  border-radius: 4px;
+  background: #2ecc71;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 16px;
   font-size: 0.9rem;
 }
 
 .case-description {
-  margin: 15px 0;
+  color: #34495e;
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
   line-height: 1.5;
-  color: #444;
-  font-size: clamp(0.9rem, 1.5vw, 1rem);
 }
 
 .case-thresholds {
-  margin-top: 15px;
-  padding-top: 15px;
-  border-top: 1px solid #eee;
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  gap: 1rem;
+  margin-top: 1rem;
 }
 
 .threshold-tag {
-  background-color: #f8f9fa;
-  padding: 4px 8px;
-  border-radius: 4px;
+  background: #ecf0f1;
+  color: #2c3e50;
+  padding: 0.25rem 0.75rem;
+  border-radius: 16px;
   font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+  .cases-container {
+    padding: 1rem;
+  }
+
+  .cases-title {
+    font-size: 2rem;
+  }
+
+  .cases-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .case-card {
+    padding: 1rem;
+  }
+
+  .case-title {
+    font-size: 1.25rem;
+  }
 } 

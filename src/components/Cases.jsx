@@ -1,23 +1,53 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { BACKEND_URL } from '../scenes/utils/constants';
+import CaseDetails from './CaseDetails';
 import './Cases.css';
 
 const Cases = () => {
   const [cases, setCases] = useState([]);
+  const [selectedCase, setSelectedCase] = useState(null);
+  const { caseId } = useParams();
 
   useEffect(() => {
-    fetchCases();
-  }, []);
+    console.log('Current caseId:', caseId);
+    if (caseId) {
+      fetchSingleCase();
+    } else {
+      fetchCases();
+    }
+  }, [caseId]);
 
   const fetchCases = async () => {
     try {
       const response = await fetch(BACKEND_URL + '/api/games/cases');
       const data = await response.json();
+      console.log('Fetched cases:', data);
       setCases(data);
     } catch (error) {
       console.error('Error fetching cases:', error);
     }
   };
+
+  const fetchSingleCase = async () => {
+    try {
+      console.log('Fetching case with ID:', caseId);
+      const response = await fetch(BACKEND_URL + `/api/games/cases/${caseId}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log('Fetched single case:', data);
+      setSelectedCase(data[0]);
+    } catch (error) {
+      console.error('Error fetching case:', error);
+      setSelectedCase(null);
+    }
+  };
+
+  if (caseId && selectedCase) {
+    return <CaseDetails case_={selectedCase} />;
+  }
 
   return (
     <div className="cases-container">
@@ -25,7 +55,7 @@ const Cases = () => {
 
       <div className="cases-grid">
         {cases.map((case_) => (
-          <div key={case_._id} className="case-card">
+          <Link to={`/cases/${case_.caseId}`} key={case_.caseId} className="case-card">
             <h2 className="case-title">{case_.Name}</h2>
             
             <div className="case-tags">
@@ -53,7 +83,7 @@ const Cases = () => {
                 )}
               </div>
             )}
-          </div>
+          </Link>
         ))}
       </div>
     </div>

@@ -10,6 +10,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Game />} />
           <Route path="/cases" element={<Cases />} />
+          <Route path="/cases/:caseId" element={<Cases />} />
         </Routes>
       </div>
     </Router>
