@@ -15,9 +15,6 @@ dist-ssr
 # Ignore all files in the context directory
 context/
 
-# Ignore all files in the data directory
-data/
-
 # Ignore all environment variables
 .env
 *.env
