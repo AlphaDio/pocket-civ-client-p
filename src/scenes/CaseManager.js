@@ -160,6 +160,19 @@ export default class CaseManager {
       .setOrigin(0.5);
     leadersText.name = "leaders";
 
+    // Add destroyed overlay if case is destroyed
+    if (caseData.isDestroyed) {
+      const destroyedOverlay = this.scene.add.rectangle(0, 0, CARD_WIDTH, CARD_HEIGHT, 0xff0000, 0.3);
+      const destroyedText = this.scene.add.text(0, 0, "DESTROYED", {
+        fontSize: "24px",
+        fill: "#ff0000",
+        fontStyle: "bold",
+        stroke: "#000",
+        strokeThickness: 4
+      }).setOrigin(0.5);
+      container.add([destroyedOverlay, destroyedText]);
+    }
+
     container.add([bg, nameText, typeText, leadersText]);
 
     this.updateCaseCard(container, caseData, index);
@@ -185,6 +198,27 @@ export default class CaseManager {
     if (typeText) {
       typeText.setText(caseData.type);
       typeText.setVisible(true);
+    }
+
+    // Remove any existing destroyed overlay
+    container.list
+      .filter(e => e.type === "Rectangle" && e.fillColor === 0xff0000)
+      .forEach(e => e.destroy());
+    container.list
+      .filter(e => e.type === "Text" && e.text === "DESTROYED")
+      .forEach(e => e.destroy());
+
+    // Add destroyed overlay if case is destroyed
+    if (caseData.isDestroyed) {
+      const destroyedOverlay = this.scene.add.rectangle(0, 0, CARD_WIDTH, CARD_HEIGHT, 0xff0000, 0.3);
+      const destroyedText = this.scene.add.text(0, 0, "DESTROYED", {
+        fontSize: "24px",
+        fill: "#ff0000",
+        fontStyle: "bold",
+        stroke: "#000",
+        strokeThickness: 4
+      }).setOrigin(0.5);
+      container.add([destroyedOverlay, destroyedText]);
     }
 
     container.list
