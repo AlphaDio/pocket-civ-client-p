@@ -161,42 +161,44 @@ export default class LeaderManager {
   }
 
   handleLeaderClick(leaderId, leader) {
-    if (this.selectedLeader === leaderId) {
-      // If already selected, check if we can select unique
-      if (!leader.uniqueAbility.usedThisEra && !this.selectedLeaderUnique) {
-        this.selectedLeaderUnique = true;
-        this.updateLeaderSelection(
-          this.leaderPool.get(leaderId),
-          leader,
-          leaderId
-        );
-      } else {
-        // Deselect if clicking again
-        this.selectedLeader = null;
-        this.selectedLeaderUnique = false;
-        this.updateLeaderSelection(
-          this.leaderPool.get(leaderId),
-          leader,
-          leaderId
-        );
-      }
-    } else {
-      // Select new leader
-      if (this.selectedLeader) {
-        // Deselect previous leader
-        const prevDisplay = this.leaderPool.get(this.selectedLeader);
-        if (prevDisplay) {
-          prevDisplay.bg.setFillStyle(0x333333);
-        }
-      }
+    // Get all available leaders
+    const availableLeaders = this.scene.gameState.player.leaders;
+    if (!availableLeaders || availableLeaders.length === 0) return;
+
+    // Find current leader index
+    const currentIndex = availableLeaders.findIndex(l => l.leaderId === leaderId);
+    if (currentIndex === -1) return;
+
+    // If no leader is currently selected, start with the clicked leader
+    if (!this.selectedLeader) {
       this.selectedLeader = leaderId;
       this.selectedLeaderUnique = false;
-      this.updateLeaderSelection(
-        this.leaderPool.get(leaderId),
-        leader,
-        leaderId
-      );
+      this.updateLeaderSelection(this.leaderPool.get(leaderId), leader, leaderId);
+      return;
     }
+
+    // If we're on the same leader
+    if (this.selectedLeader === leaderId) {
+      // If unique ability is available and not selected, select it
+      if (!leader.uniqueAbility.usedThisEra && !this.selectedLeaderUnique) {
+        this.selectedLeaderUnique = true;
+        this.updateLeaderSelection(this.leaderPool.get(leaderId), leader, leaderId);
+        return;
+      }
+      
+      // If unique is selected or not available, move to next leader
+      this.selectedLeaderUnique = false;
+      const nextIndex = (currentIndex + 1) % availableLeaders.length;
+      const nextLeader = availableLeaders[nextIndex];
+      this.selectedLeader = nextLeader.leaderId;
+      this.updateLeaderSelection(this.leaderPool.get(nextLeader.leaderId), nextLeader, nextLeader.leaderId);
+      return;
+    }
+
+    // If we're on a different leader, start with that leader
+    this.selectedLeader = leaderId;
+    this.selectedLeaderUnique = false;
+    this.updateLeaderSelection(this.leaderPool.get(leaderId), leader, leaderId);
   }
 
   updateLeaderSelection(display, leader, leaderId) {
