@@ -4,6 +4,7 @@ import APIService from './utils/APIService';
 export default class UIManager {
   constructor(scene) {
     this.scene = scene;
+    this.checkmarkTexture = 'checkmark';
   }
 
   async fetchCaseModifiers() {
@@ -77,6 +78,10 @@ export default class UIManager {
 
   createUI() {
     console.log("UIManager: Setting up UI components");
+    
+    // Create checkmark texture
+    this.createCheckmarkTexture();
+    
     const screenWidth = this.scene.scale.width;
     const screenHeight = this.scene.scale.height;
     const casesY = Math.floor(screenHeight * 0.4);
@@ -319,12 +324,47 @@ export default class UIManager {
       .setVisible(false);
   }
 
+  createCheckmarkTexture() {
+    // Create a checkmark texture if it doesn't exist
+    if (!this.scene.textures.exists(this.checkmarkTexture)) {
+      const graphics = this.scene.add.graphics();
+      graphics.lineStyle(3, 0x00ff00, 1);
+      
+      // Draw checkmark
+      graphics.beginPath();
+      graphics.moveTo(0, 5);
+      graphics.lineTo(5, 10);
+      graphics.lineTo(15, 0);
+      graphics.strokePath();
+      
+      // Generate texture
+      graphics.generateTexture(this.checkmarkTexture, 20, 15);
+      graphics.destroy();
+    }
+  }
+
+  hasTurnCommitted(player) {
+    if (!player || !player.turnActions) return false;
+    
+    // Check if player has valid leader placements and upgrades
+    const hasLeaderPlacements = player.turnActions.leaderPlacements && 
+                               Array.isArray(player.turnActions.leaderPlacements) && 
+                               player.turnActions.leaderPlacements.length > 0;
+    
+    const hasUpgrades = player.turnActions.upgrades && 
+                        Array.isArray(player.turnActions.upgrades) && 
+                        player.turnActions.upgrades.length > 0;
+    
+    return hasLeaderPlacements || hasUpgrades;
+  }
+
   updateOtherPlayersDisplay(otherPlayers) {
     const activePlayerIds = new Set();
     if (!otherPlayers || otherPlayers.length === 0) {
       for (const [_, display] of this.scene.playerPool) {
         display.text.visible = false;
         display.bg.visible = false;
+        if (display.checkmark) display.checkmark.visible = false;
       }
       this.scene.otherPlayersBg.setSize(0, 0);
       return;
@@ -345,6 +385,11 @@ export default class UIManager {
         display.text.setText(playerText);
         display.text.visible = true;
         display.bg.visible = true;
+        
+        // Update checkmark
+        if (display.checkmark) {
+          display.checkmark.visible = this.hasTurnCommitted(player);
+        }
       } else {
         const text = this.scene.add.text(xOffset, 10, playerText, {
           fontSize: "10px",
@@ -359,14 +404,28 @@ export default class UIManager {
           0x333333,
           0.5
         );
+        
+        // Add checkmark
+        const checkmark = this.scene.add.image(
+          xOffset + playerWidth - 15,
+          10,
+          this.checkmarkTexture
+        );
+        checkmark.visible = this.hasTurnCommitted(player);
+        
         this.scene.otherPlayersContainer.add(bg);
         this.scene.otherPlayersContainer.add(text);
-        display = { text, bg };
+        this.scene.otherPlayersContainer.add(checkmark);
+        
+        display = { text, bg, checkmark };
         this.scene.playerPool.set(playerId, display);
       }
 
       display.text.setPosition(xOffset, 10);
       display.bg.setPosition(xOffset - 5, 5);
+      if (display.checkmark) {
+        display.checkmark.setPosition(xOffset + playerWidth - 15, 10);
+      }
       xOffset += playerWidth + padding;
     });
 
@@ -374,6 +433,7 @@ export default class UIManager {
       if (!activePlayerIds.has(playerId)) {
         display.text.visible = false;
         display.bg.visible = false;
+        if (display.checkmark) display.checkmark.visible = false;
       }
     }
 
@@ -445,5 +505,24 @@ export default class UIManager {
     if (this.scene.helpButton) {
       this.scene.helpButton.setVisible(gameState?.status === 'IN_PROGRESS');
     }
+    
+    // Update player's own checkmark
+    if (gameState?.player) {
+      this.updatePlayerCheckmark(gameState.player);
+    }
+  }
+  
+  updatePlayerCheckmark(player) {
+    // Create player's checkmark if it doesn't exist
+    if (!this.scene.playerCheckmark) {
+      this.scene.playerCheckmark = this.scene.add.image(
+        this.scene.playerUUIDText.x + this.scene.playerUUIDText.width + 15,
+        this.scene.playerUUIDText.y + this.scene.playerUUIDText.height / 2,
+        this.checkmarkTexture
+      );
+    }
+    
+    // Update visibility based on turn commitment
+    this.scene.playerCheckmark.visible = this.hasTurnCommitted(player);
   }
 }

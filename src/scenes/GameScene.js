@@ -51,6 +51,8 @@ export default class GameScene extends Phaser.Scene {
   preload() {
     console.log("GameScene: Preloading assets");
     // this.load.image('leader', 'assets/leader.png');
+    
+    // No need to preload the checkmark image as we'll create it dynamically
   }
 
   create() {
