@@ -109,7 +109,7 @@ export default class UIManager {
 
     // Create a single container for the other player display
     this.scene.otherPlayerContainer = this.scene.add.container(0, 80);
-    this.scene.otherPlayerText = this.scene.add.text(0, 10, "", {
+    this.scene.otherPlayerText = this.scene.add.text(32, 10, "", {
       fontSize: "11px",
       fill: "#aaa",
       align: "left",
@@ -392,7 +392,7 @@ export default class UIManager {
     this.scene.commitStatusText.setStyle({
       fill: hasCommitted ? '#00ff00' : '#ff0000'  // Green for committed, red for not committed
     });
-    this.scene.commitStatusText.setPosition(20, 10); // Position next to the player name
+    this.scene.commitStatusText.setPosition(80, 10); // Position next to the player name
     this.scene.commitStatusText.visible = true;
     
     const playerWidth = 200; // Increased width to accommodate the text
