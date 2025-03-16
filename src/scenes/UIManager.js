@@ -112,7 +112,7 @@ export default class UIManager {
     this.scene.otherPlayerText = this.scene.add.text(0, 10, "", {
       fontSize: "11px",
       fill: "#aaa",
-      align: "left",
+      align: "right"
     }).setInteractive();
     
     this.scene.otherPlayerContainer.add([
@@ -362,7 +362,9 @@ export default class UIManager {
     let leaderInfo = "No Leader";
     if (player.leader) {
       const uniqueStatus = player.leader.uniqueAbility.usedThisEra ? "Used" : "Available";
-      leaderInfo = `${player.leader.name} (${player.leader.uniqueAbility.name}: ${uniqueStatus})`;
+      const r1 = player.leader.range1;
+      const r2 = player.leader.range2;
+      leaderInfo = `${player.leader.name}\nR1: ${r1.knowledge.type.substring(0, 3)}: +${r1.knowledge.amount} (${r1.value} ${r1.direction})\nR2: ${r2.knowledge.type.substring(0, 3)}: +${r2.knowledge.amount} (${r2.value} ${r2.direction})\n${player.leader.uniqueAbility.name}: ${uniqueStatus}`;
     }
     
     const hasCommitted = this.hasTurnCommitted(player);
@@ -373,7 +375,7 @@ export default class UIManager {
     this.scene.otherPlayerText.setStyle({
       fontSize: "11px",
       fill: "#aaa",
-      align: "left"
+      align: "right"
     });
     this.scene.otherPlayerText.visible = true;
     
@@ -381,25 +383,28 @@ export default class UIManager {
     if (!this.scene.commitStatusText) {
       this.scene.commitStatusText = this.scene.add.text(0, 0, "", {
         fontSize: "11px",
-        align: "left"
+        align: "right"
       });
       this.scene.otherPlayerContainer.add(this.scene.commitStatusText);
     }
     
     this.scene.commitStatusText.setText(hasCommitted ? 'Committed' : 'Not Committed');
     this.scene.commitStatusText.setStyle({
-      fill: hasCommitted ? '#00ff00' : '#ff0000'  // Green for committed, red for not committed
+      fill: hasCommitted ? '#00ff00' : '#ff0000'
     });
-    this.scene.commitStatusText.setPosition(20, 10); // Position next to the player name
+    this.scene.commitStatusText.setPosition(playerWidth - 120, 10);
     this.scene.commitStatusText.visible = true;
     
-    const playerWidth = 150; // Width to accommodate the text
+    const playerWidth = 200;
 
-    // Position the container in the top-right corner
+    // Position the container in the top-right corner and set origin for right alignment
     this.scene.otherPlayerContainer.setPosition(
-      this.scene.sys.game.config.width - playerWidth - 10,
+      this.scene.sys.game.config.width - 10,
       35
     );
+    
+    // Set the origin to right side for proper alignment
+    this.scene.otherPlayerText.setOrigin(1, 0);
     
     // Add click handler for player switching
     this.scene.otherPlayerText.off('pointerdown'); // Remove any existing handlers
