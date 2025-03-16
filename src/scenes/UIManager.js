@@ -112,7 +112,7 @@ export default class UIManager {
     this.scene.otherPlayerText = this.scene.add.text(0, 10, "", {
       fontSize: "11px",
       fill: "#aaa",
-      align: "right"
+      align: "left",
     }).setInteractive();
     
     this.scene.otherPlayerContainer.add([
@@ -375,7 +375,7 @@ export default class UIManager {
     this.scene.otherPlayerText.setStyle({
       fontSize: "11px",
       fill: "#aaa",
-      align: "right"
+      align: "left"
     });
     this.scene.otherPlayerText.visible = true;
     
@@ -383,28 +383,25 @@ export default class UIManager {
     if (!this.scene.commitStatusText) {
       this.scene.commitStatusText = this.scene.add.text(0, 0, "", {
         fontSize: "11px",
-        align: "right"
+        align: "left"
       });
       this.scene.otherPlayerContainer.add(this.scene.commitStatusText);
     }
     
     this.scene.commitStatusText.setText(hasCommitted ? 'Committed' : 'Not Committed');
     this.scene.commitStatusText.setStyle({
-      fill: hasCommitted ? '#00ff00' : '#ff0000'
+      fill: hasCommitted ? '#00ff00' : '#ff0000'  // Green for committed, red for not committed
     });
-    this.scene.commitStatusText.setPosition(playerWidth - 120, 10);
+    this.scene.commitStatusText.setPosition(20, 10); // Position next to the player name
     this.scene.commitStatusText.visible = true;
     
-    const playerWidth = 200;
+    const playerWidth = 200; // Increased width to accommodate the text
 
-    // Position the container in the top-right corner and set origin for right alignment
+    // Position the container in the top-right corner
     this.scene.otherPlayerContainer.setPosition(
-      this.scene.sys.game.config.width - 10,
+      this.scene.sys.game.config.width - playerWidth - 10,
       35
     );
-    
-    // Set the origin to right side for proper alignment
-    this.scene.otherPlayerText.setOrigin(1, 0);
     
     // Add click handler for player switching
     this.scene.otherPlayerText.off('pointerdown'); // Remove any existing handlers
