@@ -358,15 +358,16 @@ export default class UIManager {
     // Get the current player to display
     const player = this.otherPlayersList[this.currentPlayerIndex];
     
-    // Check for leader information in different possible formats
-    let leaderName = "No Leader";
-    if (player.leader && player.leader.name) {
-      leaderName = player.leader.name;
+    // Get leader information from the player object
+    let leaderInfo = "No Leader";
+    if (player.leader) {
+      const uniqueStatus = player.leader.uniqueAbility.usedThisEra ? "Used" : "Available";
+      leaderInfo = `${player.leader.name} (${player.leader.uniqueAbility.name}: ${uniqueStatus})`;
     }
     
     const hasCommitted = this.hasTurnCommitted(player);
     
-    const playerText = `${player.name}\nEP: ${player.eraPoints}\nM: ${player.resources.might} | E: ${player.resources.education}\nG: ${player.resources.gold} | Fa: ${player.resources.faith}\nFo: ${player.resources.food} | I: ${player.resources.influence}\n${leaderName}`;
+    const playerText = `${player.name}\nEP: ${player.eraPoints}\nM: ${player.resources.might} | E: ${player.resources.education}\nG: ${player.resources.gold} | Fa: ${player.resources.faith}\nFo: ${player.resources.food} | I: ${player.resources.influence}\n${leaderInfo}`;
 
     this.scene.otherPlayerText.setText(playerText);
     this.scene.otherPlayerText.setStyle({
