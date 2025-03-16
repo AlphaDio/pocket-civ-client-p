@@ -388,11 +388,11 @@ export default class UIManager {
       this.scene.otherPlayerContainer.add(this.scene.commitStatusText);
     }
     
-    this.scene.commitStatusText.setText(hasCommitted ? 'Committed' : 'Not Committed');
+    this.scene.commitStatusText.setText(hasCommitted ? 'OK' : 'X');
     this.scene.commitStatusText.setStyle({
       fill: hasCommitted ? '#00ff00' : '#ff0000'  // Green for committed, red for not committed
     });
-    this.scene.commitStatusText.setPosition(80, 10); // Position next to the player name
+    this.scene.commitStatusText.setPosition(90, 10); // Position next to the player name
     this.scene.commitStatusText.visible = true;
     
     const playerWidth = 200; // Increased width to accommodate the text
