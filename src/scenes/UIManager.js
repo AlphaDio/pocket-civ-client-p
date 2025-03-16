@@ -4,7 +4,6 @@ import APIService from './utils/APIService';
 export default class UIManager {
   constructor(scene) {
     this.scene = scene;
-    this.checkmarkTexture = 'checkmark';
   }
 
   async fetchCaseModifiers() {
@@ -175,9 +174,13 @@ export default class UIManager {
       .on("pointerover", () =>
         this.scene.commitTurnButton.setStyle({ fill: "#88ff88" })
       )
-      .on("pointerout", () =>
-        this.scene.commitTurnButton.setStyle({ fill: "#00ff00" })
-      )
+      .on("pointerout", () => {
+        // Check if committed to determine the color to return to
+        const hasCommitted = this.hasTurnCommitted(this.scene.gameState?.player);
+        this.scene.commitTurnButton.setStyle({ 
+          fill: hasCommitted ? "#ff0000" : "#00ff00" 
+        });
+      })
       .setVisible(false);
 
     // Add help button
@@ -354,7 +357,13 @@ export default class UIManager {
 
     // Get the current player to display
     const player = this.otherPlayersList[this.currentPlayerIndex];
-    const leaderName = player.leader?.name || "No Leader";
+    
+    // Check for leader information in different possible formats
+    let leaderName = "No Leader";
+    if (player.leader && player.leader.name) {
+      leaderName = player.leader.name;
+    }
+    
     const hasCommitted = this.hasTurnCommitted(player);
     
     const playerText = `${player.name}\nEP: ${player.eraPoints}\nM: ${player.resources.might} | E: ${player.resources.education}\nG: ${player.resources.gold} | Fa: ${player.resources.faith}\nFo: ${player.resources.food} | I: ${player.resources.influence}\n${leaderName}`;
@@ -469,6 +478,21 @@ export default class UIManager {
     // Update help button visibility based on game state
     if (this.scene.helpButton) {
       this.scene.helpButton.setVisible(gameState?.status === 'IN_PROGRESS');
+    }
+
+    // Update commit button state
+    if (gameState?.player) {
+      const hasCommitted = this.hasTurnCommitted(gameState.player);
+      if (hasCommitted) {
+        this.scene.commitTurnButton.setText("Committed!");
+        this.scene.commitTurnButton.setStyle({ fill: "#ff0000" });
+        this.scene.commitTurnButton.disableInteractive();
+      } else {
+        this.scene.commitTurnButton.setText("Commit Turn");
+        this.scene.commitTurnButton.setStyle({ fill: "#00ff00" });
+        this.scene.commitTurnButton.setInteractive();
+      }
+      this.scene.commitTurnButton.setVisible(gameState.status === 'IN_PROGRESS');
     }
   }
 }

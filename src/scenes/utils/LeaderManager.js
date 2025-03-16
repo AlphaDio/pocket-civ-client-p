@@ -44,132 +44,109 @@ export default class LeaderManager {
       : this.BASE_LEADER_HEIGHT;
   }
 
-  calculateTotalContainerHeight(leaders) {
-    if (!leaders || leaders.length === 0) {
+  calculateTotalContainerHeight(leader) {
+    if (!leader) {
       return this.MIN_CONTAINER_HEIGHT;
     }
 
     return Math.max(
       this.MIN_CONTAINER_HEIGHT,
-      leaders.length * this.BASE_LEADER_HEIGHT + this.CONTAINER_PADDING * 2
+      this.BASE_LEADER_HEIGHT + this.CONTAINER_PADDING * 2
     );
   }
 
-  updateLeadersDisplay(leaders) {
-    const activeLeaderIds = new Set();
-  
-    if (!leaders || leaders.length === 0) {
-      for (const [_, display] of this.leaderPool) {
-        display.nameText.visible = false;
-        display.knowledgeText.visible = false;
-        display.uniqueText.visible = false;
-        display.bg.visible = false;
-      }
+  updateLeadersDisplay(leader) {
+    // Clear all leader displays first
+    for (const [_, display] of this.leaderPool) {
+      display.nameText.visible = false;
+      display.knowledgeText.visible = false;
+      display.uniqueText.visible = false;
+      display.bg.visible = false;
+    }
+    
+    if (!leader) {
       this.leadersBg.setSize(LEADER_CONTAINER_WIDTH, this.MIN_CONTAINER_HEIGHT);
       return;
     }
   
-    const totalHeight = this.calculateTotalContainerHeight(leaders);
-    let yOffset = totalHeight - this.CONTAINER_PADDING - this.BASE_LEADER_HEIGHT;
+    const totalHeight = this.calculateTotalContainerHeight(leader);
+    const yOffset = totalHeight - this.CONTAINER_PADDING - this.BASE_LEADER_HEIGHT;
+    const leaderId = leader.leaderId;
   
-    leaders.forEach((leader, index) => {
-      const leaderId = leader.leaderId;
-      activeLeaderIds.add(leaderId);
+    const pendingPlacement = this.scene.gameState.player.turnActions.leaderPlacements.find(
+      (p) => p.leaderId === leaderId
+    );
   
-      const pendingPlacement = this.scene.gameState.player.turnActions.leaderPlacements.find(
-        (p) => p.leaderId === leaderId
+    let display;
+    if (this.leaderPool.has(leaderId)) {
+      display = this.leaderPool.get(leaderId);
+  
+      // Update text content without changing font size
+      const formattedText = this.formatLeaderText(leader);
+      display.nameText.setText(formattedText.nameText);
+      display.knowledgeText.setText(formattedText.knowledgeText);
+  
+      display.nameText.visible = true;
+      display.knowledgeText.visible = true;
+      display.uniqueText.visible = true;
+      display.bg.visible = true;
+  
+      // Ensure font sizes remain consistent with initial creation
+      display.nameText.setStyle({ fontSize: "14px", fill: "#fff" });
+      display.knowledgeText.setStyle({ fontSize: "14px", fill: "#fff" });
+      display.uniqueText.setStyle({ fontSize: "15px", fill: "#00ff00" });
+    } else {
+      const bg = this.scene.add.rectangle(0, 0, LEADER_CONTAINER_WIDTH, this.BASE_LEADER_HEIGHT - 10, 0x333333);
+      bg.setInteractive();
+  
+      const formattedText = this.formatLeaderText(leader);
+      const nameText = this.scene.add.text(10, 0, formattedText.nameText,
+        { fontSize: "14px", fill: "#fff" }
+      );
+      const knowledgeText = this.scene.add.text(10, 20, formattedText.knowledgeText,
+        { fontSize: "14px", fill: "#fff" }
+      );
+      const uniqueText = this.scene.add.text(10, 40, "",
+        { fontSize: "15px", fill: "#00ff00" }
       );
   
-      let display;
-      if (this.leaderPool.has(leaderId)) {
-        display = this.leaderPool.get(leaderId);
+      this.leadersContainer.add([bg, nameText, knowledgeText, uniqueText]);
   
-        // Update text content without changing font size
-        const formattedText = this.formatLeaderText(leader);
-        display.nameText.setText(formattedText.nameText);
-        display.knowledgeText.setText(formattedText.knowledgeText);
+      display = { bg, nameText, knowledgeText, uniqueText };
+      this.leaderPool.set(leaderId, display);
   
-        display.nameText.visible = true;
-        display.knowledgeText.visible = true;
-        display.uniqueText.visible = true;
-        display.bg.visible = true;
+      bg.on("pointerdown", () => this.handleLeaderClick(leaderId, leader));
+      bg.on("pointerover", () => {
+        if (this.selectedLeader !== leaderId) {
+          bg.setFillStyle(0x444444);
+        }
+      });
+      bg.on("pointerout", () => {
+        if (this.selectedLeader !== leaderId) {
+          bg.setFillStyle(0x333333);
+        }
+      });
   
-        // Ensure font sizes remain consistent with initial creation
-        display.nameText.setStyle({ fontSize: "14px", fill: "#fff" });
-        display.knowledgeText.setStyle({ fontSize: "14px", fill: "#fff" });
-        display.uniqueText.setStyle({ fontSize: "15px", fill: "#00ff00" });
-      } else {
-        const bg = this.scene.add.rectangle(0, 0, LEADER_CONTAINER_WIDTH, this.BASE_LEADER_HEIGHT - 10, 0x333333);
-        bg.setInteractive();
-  
-        const formattedText = this.formatLeaderText(leader);
-        const nameText = this.scene.add.text(10, 0, formattedText.nameText,
-          { fontSize: "14px", fill: "#fff" }
-        );
-        const knowledgeText = this.scene.add.text(10, 20, formattedText.knowledgeText,
-          { fontSize: "14px", fill: "#fff" }
-        );
-        const uniqueText = this.scene.add.text(10, 40, "",
-          { fontSize: "15px", fill: "#00ff00" }
-        );
-  
-        this.leadersContainer.add([bg, nameText, knowledgeText, uniqueText]);
-  
-        display = { bg, nameText, knowledgeText, uniqueText };
-        this.leaderPool.set(leaderId, display);
-  
-        bg.on("pointerdown", () => this.handleLeaderClick(leaderId, leader));
-        bg.on("pointerover", () => {
-          if (this.selectedLeader !== leaderId) {
-            bg.setFillStyle(0x444444);
-          }
-        });
-        bg.on("pointerout", () => {
-          if (this.selectedLeader !== leaderId) {
-            bg.setFillStyle(0x333333);
-          }
-        });
-  
-        this.updateLeaderSelection(display, leader, leaderId);
-      }
-  
-      display.bg.setPosition(LEADER_CONTAINER_WIDTH / 2, yOffset + (this.BASE_LEADER_HEIGHT - 10) / 2);
-      display.bg.setSize(LEADER_CONTAINER_WIDTH, this.BASE_LEADER_HEIGHT - 10);
-      display.nameText.setPosition(10, yOffset);
-      display.knowledgeText.setPosition(10, yOffset + 30);
-      display.uniqueText.setPosition(10, yOffset + 45);
-  
-      // Prevent text wrapping or scaling by setting a fixed width and word wrap
-      const textWidth = LEADER_CONTAINER_WIDTH - 20; // 10px padding on each side
-      display.nameText.setWordWrapWidth(textWidth, true);
-      display.knowledgeText.setWordWrapWidth(textWidth, true);
-      display.uniqueText.setWordWrapWidth(textWidth, true);
-  
-      yOffset -= this.BASE_LEADER_HEIGHT;
-    });
-  
-    for (const [leaderId, display] of this.leaderPool.entries()) {
-      if (!activeLeaderIds.has(leaderId)) {
-        display.nameText.visible = false;
-        display.knowledgeText.visible = false;
-        display.uniqueText.visible = false;
-        display.bg.visible = false;
-      }
+      this.updateLeaderSelection(display, leader, leaderId);
     }
+  
+    display.bg.setPosition(LEADER_CONTAINER_WIDTH / 2, yOffset + (this.BASE_LEADER_HEIGHT - 10) / 2);
+    display.bg.setSize(LEADER_CONTAINER_WIDTH, this.BASE_LEADER_HEIGHT - 10);
+    display.nameText.setPosition(10, yOffset);
+    display.knowledgeText.setPosition(10, yOffset + 30);
+    display.uniqueText.setPosition(10, yOffset + 45);
+  
+    // Prevent text wrapping or scaling by setting a fixed width and word wrap
+    const textWidth = LEADER_CONTAINER_WIDTH - 20; // 10px padding on each side
+    display.nameText.setWordWrapWidth(textWidth, true);
+    display.knowledgeText.setWordWrapWidth(textWidth, true);
+    display.uniqueText.setWordWrapWidth(textWidth, true);
   
     this.leadersBg.setSize(LEADER_CONTAINER_WIDTH, totalHeight);
   }
 
   handleLeaderClick(leaderId, leader) {
-    // Get all available leaders
-    const availableLeaders = this.scene.gameState.player.leaders;
-    if (!availableLeaders || availableLeaders.length === 0) return;
-
-    // Find current leader index
-    const currentIndex = availableLeaders.findIndex(l => l.leaderId === leaderId);
-    if (currentIndex === -1) return;
-
-    // If no leader is currently selected, start with the clicked leader
+    // If no leader is currently selected, select this leader
     if (!this.selectedLeader) {
       this.selectedLeader = leaderId;
       this.selectedLeaderUnique = false;
@@ -186,19 +163,12 @@ export default class LeaderManager {
         return;
       }
       
-      // If unique is selected or not available, move to next leader
+      // If unique is selected or not available, deselect the leader
+      this.selectedLeader = null;
       this.selectedLeaderUnique = false;
-      const nextIndex = (currentIndex + 1) % availableLeaders.length;
-      const nextLeader = availableLeaders[nextIndex];
-      this.selectedLeader = nextLeader.leaderId;
-      this.updateLeaderSelection(this.leaderPool.get(nextLeader.leaderId), nextLeader, nextLeader.leaderId);
+      this.updateLeaderSelection(this.leaderPool.get(leaderId), leader, leaderId);
       return;
     }
-
-    // If we're on a different leader, start with that leader
-    this.selectedLeader = leaderId;
-    this.selectedLeaderUnique = false;
-    this.updateLeaderSelection(this.leaderPool.get(leaderId), leader, leaderId);
   }
 
   updateLeaderSelection(display, leader, leaderId) {
@@ -268,11 +238,9 @@ export default class LeaderManager {
   addPendingPlacement(caseId) {
     if (!this.selectedLeader) return false;
 
-    const leader = this.scene.gameState.player.leaders.find(
-      (l) => l.leaderId === this.selectedLeader
-    );
+    const leader = this.scene.gameState.player.leader;
     
-    if (!leader) return false;
+    if (!leader || leader.leaderId !== this.selectedLeader) return false;
 
     // Check if this leader already has a pending placement
     const existingPlacement = this.pendingPlacements.find(
@@ -334,10 +302,8 @@ export default class LeaderManager {
 
     // Add server-side pending placements
     if (serverPendingPlacement) {
-      const leader = this.scene.gameState.player.leaders.find(
-        (l) => l.leaderId === serverPendingPlacement.leaderId
-      );
-      if (leader) {
+      const leader = this.scene.gameState.player.leader;
+      if (leader && leader.leaderId === serverPendingPlacement.leaderId) {
         const shortUUID = this.scene.playerUUID.substring(0, 3);
         const uniqueMarker = serverPendingPlacement.useUnique ? "*" : "";
         leaderStrings.push(
@@ -348,10 +314,8 @@ export default class LeaderManager {
 
     // Add local pending placements
     if (localPendingPlacement) {
-      const leader = this.scene.gameState.player.leaders.find(
-        (l) => l.leaderId === localPendingPlacement.leaderId
-      );
-      if (leader) {
+      const leader = this.scene.gameState.player.leader;
+      if (leader && leader.leaderId === localPendingPlacement.leaderId) {
         const shortUUID = this.scene.playerUUID.substring(0, 3);
         const uniqueMarker = localPendingPlacement.useUnique ? "*" : "";
         leaderStrings.push(

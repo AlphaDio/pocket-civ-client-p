@@ -112,7 +112,7 @@ export default class StateManager {
 
     // Update UI elements
     this.scene.statusText.setText(`Game Status: ${gameState.status}`);
-    this.scene.leaderManager.updateLeadersDisplay(gameState.player.leaders);
+    this.scene.leaderManager.updateLeadersDisplay(gameState.player.leader);
     this.scene.startGameButton.visible =
       gameState.status === "setup" &&
       gameState.player.uuid === gameState.creator;
