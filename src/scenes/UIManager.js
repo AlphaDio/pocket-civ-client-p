@@ -79,9 +79,6 @@ export default class UIManager {
   createUI() {
     console.log("UIManager: Setting up UI components");
     
-    // Create checkmark texture
-    this.createCheckmarkTexture();
-    
     const screenWidth = this.scene.scale.width;
     const screenHeight = this.scene.scale.height;
     const casesY = Math.floor(screenHeight * 0.4);
@@ -111,16 +108,17 @@ export default class UIManager {
       fill: "#fff",
     });
 
-    this.scene.otherPlayersContainer = this.scene.add.container(0, 80);
-    this.scene.otherPlayersBg = this.scene.add.rectangle(
-      0,
-      0,
-      0,
-      80,
-      0x222222,
-      0.5
-    );
-    this.scene.otherPlayersContainer.add(this.scene.otherPlayersBg);
+    // Create a single container for the other player display
+    this.scene.otherPlayerContainer = this.scene.add.container(0, 80);
+    this.scene.otherPlayerText = this.scene.add.text(0, 10, "", {
+      fontSize: "11px",
+      fill: "#aaa",
+      align: "left",
+    }).setInteractive();
+    
+    this.scene.otherPlayerContainer.add([
+      this.scene.otherPlayerText
+    ]);
 
     this.scene.casesContainer = this.scene.add.container(0, casesY);
     this.scene.historyCasesContainer = this.scene.add.container(0, casesY);
@@ -148,11 +146,11 @@ export default class UIManager {
       .setVisible(false);
 
     this.scene.eraLabel = this.scene.add
-      .text(screenWidth / 2, 20, "", {
+      .text(10, 102, "", {
         fontSize: "18px",
         fill: "#fff",
       })
-      .setOrigin(0.5, 0);
+      .setOrigin(0, 0);
 
     const leadersY = screenHeight - 120;
     this.scene.leadersContainer =
@@ -324,25 +322,6 @@ export default class UIManager {
       .setVisible(false);
   }
 
-  createCheckmarkTexture() {
-    // Create a checkmark texture if it doesn't exist
-    if (!this.scene.textures.exists(this.checkmarkTexture)) {
-      const graphics = this.scene.add.graphics();
-      graphics.lineStyle(3, 0x00ff00, 1);
-      
-      // Draw checkmark
-      graphics.beginPath();
-      graphics.moveTo(0, 5);
-      graphics.lineTo(5, 10);
-      graphics.lineTo(15, 0);
-      graphics.strokePath();
-      
-      // Generate texture
-      graphics.generateTexture(this.checkmarkTexture, 20, 15);
-      graphics.destroy();
-    }
-  }
-
   hasTurnCommitted(player) {
     if (!player || !player.turnActions) return false;
     
@@ -359,89 +338,75 @@ export default class UIManager {
   }
 
   updateOtherPlayersDisplay(otherPlayers) {
-    const activePlayerIds = new Set();
     if (!otherPlayers || otherPlayers.length === 0) {
-      for (const [_, display] of this.scene.playerPool) {
-        display.text.visible = false;
-        display.bg.visible = false;
-        if (display.checkmark) display.checkmark.visible = false;
+      this.scene.otherPlayerText.visible = false;
+      if (this.scene.commitStatusText) {
+        this.scene.commitStatusText.visible = false;
       }
-      this.scene.otherPlayersBg.setSize(0, 0);
       return;
     }
 
-    let xOffset = 0;
-    const padding = 10;
-    const playerWidth = 100;
-
-    otherPlayers.forEach((player) => {
-      const playerId = player.id;
-      activePlayerIds.add(playerId);
-      const playerText = `${player.name}\nEP: ${player.eraPoints}\nM: ${player.resources.might} | E: ${player.resources.education}\nG: ${player.resources.gold} | Fa: ${player.resources.faith}\nFo: ${player.resources.food} | I: ${player.resources.influence}`;
-
-      let display;
-      if (this.scene.playerPool.has(playerId)) {
-        display = this.scene.playerPool.get(playerId);
-        display.text.setText(playerText);
-        display.text.visible = true;
-        display.bg.visible = true;
-        
-        // Update checkmark
-        if (display.checkmark) {
-          display.checkmark.visible = this.hasTurnCommitted(player);
-        }
-      } else {
-        const text = this.scene.add.text(xOffset, 10, playerText, {
-          fontSize: "10px",
-          fill: "#aaa",
-          align: "left",
-        });
-        const bg = this.scene.add.rectangle(
-          xOffset - 5,
-          5,
-          playerWidth,
-          100,
-          0x333333,
-          0.5
-        );
-        
-        // Add checkmark
-        const checkmark = this.scene.add.image(
-          xOffset + playerWidth - 15,
-          10,
-          this.checkmarkTexture
-        );
-        checkmark.visible = this.hasTurnCommitted(player);
-        
-        this.scene.otherPlayersContainer.add(bg);
-        this.scene.otherPlayersContainer.add(text);
-        this.scene.otherPlayersContainer.add(checkmark);
-        
-        display = { text, bg, checkmark };
-        this.scene.playerPool.set(playerId, display);
-      }
-
-      display.text.setPosition(xOffset, 10);
-      display.bg.setPosition(xOffset - 5, 5);
-      if (display.checkmark) {
-        display.checkmark.setPosition(xOffset + playerWidth - 15, 10);
-      }
-      xOffset += playerWidth + padding;
-    });
-
-    for (const [playerId, display] of this.scene.playerPool.entries()) {
-      if (!activePlayerIds.has(playerId)) {
-        display.text.visible = false;
-        display.bg.visible = false;
-        if (display.checkmark) display.checkmark.visible = false;
-      }
+    // Store the current player list and initialize current index if not set
+    this.otherPlayersList = otherPlayers;
+    if (!this.currentPlayerIndex) {
+      this.currentPlayerIndex = 0;
     }
 
-    this.scene.otherPlayersBg.setSize(xOffset, 110);
-    this.scene.otherPlayersContainer.setPosition(
-      this.scene.sys.game.config.width - xOffset - 10,
-      10
+    // Get the current player to display
+    const player = this.otherPlayersList[this.currentPlayerIndex];
+    const leaderName = player.leader?.name || "No Leader";
+    const hasCommitted = this.hasTurnCommitted(player);
+    
+    const playerText = `${player.name}\nEP: ${player.eraPoints}\nM: ${player.resources.might} | E: ${player.resources.education}\nG: ${player.resources.gold} | Fa: ${player.resources.faith}\nFo: ${player.resources.food} | I: ${player.resources.influence}\n${leaderName}`;
+
+    this.scene.otherPlayerText.setText(playerText);
+    this.scene.otherPlayerText.setStyle({
+      fontSize: "11px",
+      fill: "#aaa",
+      align: "left"
+    });
+    this.scene.otherPlayerText.visible = true;
+    
+    // Create or update the commit status text
+    if (!this.scene.commitStatusText) {
+      this.scene.commitStatusText = this.scene.add.text(0, 0, "", {
+        fontSize: "11px",
+        align: "left"
+      });
+      this.scene.otherPlayerContainer.add(this.scene.commitStatusText);
+    }
+    
+    this.scene.commitStatusText.setText(hasCommitted ? 'Committed' : 'Not Committed');
+    this.scene.commitStatusText.setStyle({
+      fill: hasCommitted ? '#00ff00' : '#ff0000'  // Green for committed, red for not committed
+    });
+    this.scene.commitStatusText.setPosition(20, 10); // Position next to the player name
+    this.scene.commitStatusText.visible = true;
+    
+    const playerWidth = 150; // Width to accommodate the text
+
+    // Position the container in the top-right corner
+    this.scene.otherPlayerContainer.setPosition(
+      this.scene.sys.game.config.width - playerWidth - 10,
+      35
     );
+    
+    // Add click handler for player switching
+    this.scene.otherPlayerText.off('pointerdown'); // Remove any existing handlers
+    this.scene.otherPlayerText.on('pointerdown', () => {
+      // Increment index and wrap around if needed
+      this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.otherPlayersList.length;
+      // Update display with new player
+      this.updateOtherPlayersDisplay(this.otherPlayersList);
+    });
+
+    // Add hover effect
+    this.scene.otherPlayerText.on('pointerover', () => {
+      this.scene.otherPlayerText.setStyle({ fill: '#ffffff' });
+    });
+    this.scene.otherPlayerText.on('pointerout', () => {
+      this.scene.otherPlayerText.setStyle({ fill: '#aaa' });
+    });
   }
 
   updateSelectedUpgradesText() {
@@ -505,24 +470,5 @@ export default class UIManager {
     if (this.scene.helpButton) {
       this.scene.helpButton.setVisible(gameState?.status === 'IN_PROGRESS');
     }
-    
-    // Update player's own checkmark
-    if (gameState?.player) {
-      this.updatePlayerCheckmark(gameState.player);
-    }
-  }
-  
-  updatePlayerCheckmark(player) {
-    // Create player's checkmark if it doesn't exist
-    if (!this.scene.playerCheckmark) {
-      this.scene.playerCheckmark = this.scene.add.image(
-        this.scene.playerUUIDText.x + this.scene.playerUUIDText.width + 15,
-        this.scene.playerUUIDText.y + this.scene.playerUUIDText.height / 2,
-        this.checkmarkTexture
-      );
-    }
-    
-    // Update visibility based on turn commitment
-    this.scene.playerCheckmark.visible = this.hasTurnCommitted(player);
   }
 }

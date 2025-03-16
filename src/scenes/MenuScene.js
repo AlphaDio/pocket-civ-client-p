@@ -73,6 +73,19 @@ export default class MenuScene extends Phaser.Scene {
     // Add the input element to the game
     this.nameInput = this.add.dom(screenCenter, this.scale.height - 60, nameInput);
 
+    // Add Change UUID button
+    const changeUUIDButton = this.add.text(screenCenter + 40, this.scale.height - 20, 'Reset UUID', {
+      fontSize: '14px',
+      fill: '#ff9900',
+      backgroundColor: '#444',
+      padding: { x: 8, y: 4 }
+    })
+    .setOrigin(0, 0.5)
+    .setInteractive()
+    .on('pointerdown', () => this.handleChangeUUID())
+    .on('pointerover', () => changeUUIDButton.setStyle({ fill: '#ffbb33' }))
+    .on('pointerout', () => changeUUIDButton.setStyle({ fill: '#ff9900' }));
+
     // Button event handlers
     createButton.on('pointerdown', () => this.handleCreateGame());
     createButton.on('pointerover', () => createButton.setStyle({ fill: '#ff0' }));
@@ -334,6 +347,16 @@ export default class MenuScene extends Phaser.Scene {
       console.error('MenuScene: Failed to close game:', error);
       this.showError('Failed to close game');
     }
+  }
+
+  async handleChangeUUID() {
+    console.log('MenuScene: Clearing player UUID from localStorage');
+    localStorage.removeItem('playerUUID');
+    localStorage.removeItem('gameId');
+    this.playerUUID = null;
+    this.gameId = null;
+    this.showSuccess('UUID cleared successfully. You can now join with a new identity.');
+    this.fetchGames(); // Refresh the games list to update join/continue buttons
   }
 
   showError(message) {
