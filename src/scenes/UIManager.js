@@ -102,10 +102,27 @@ export default class UIManager {
         align: "right",
       })
       .setOrigin(1, 0);
-    this.scene.playerInfo = this.scene.add.text(10, 40, "", {
+
+    // Create container for player info and commit status
+    this.scene.playerInfoContainer = this.scene.add.container(10, 40);
+    
+    // Add commit status text
+    this.scene.playerCommitStatus = this.scene.add.text(0, 0, "", {
+      fontSize: "11px",
+      fontStyle: "bold",
+      align: "left"
+    });
+    
+    // Add player info text
+    this.scene.playerInfo = this.scene.add.text(20, 0, "", {
       fontSize: "14px",
       fill: "#fff",
     });
+    
+    this.scene.playerInfoContainer.add([
+      this.scene.playerCommitStatus,
+      this.scene.playerInfo
+    ]);
 
     // Create a single container for the other player display
     this.scene.otherPlayerContainer = this.scene.add.container(0, 80);
@@ -491,9 +508,11 @@ export default class UIManager {
       this.scene.helpButton.setVisible(gameState?.status === 'IN_PROGRESS');
     }
 
-    // Update commit button state
+    // Update commit button and status for current player
     if (gameState?.player) {
       const hasCommitted = this.hasTurnCommitted(gameState.player);
+      
+      // Update commit button
       if (hasCommitted) {
         this.scene.commitTurnButton.setText("Committed!");
         this.scene.commitTurnButton.setStyle({ fill: "#ff0000" });
@@ -504,6 +523,16 @@ export default class UIManager {
         this.scene.commitTurnButton.setInteractive();
       }
       this.scene.commitTurnButton.setVisible(gameState.status === 'IN_PROGRESS');
+
+      // Update commit status text
+      if (this.scene.playerCommitStatus) {
+        this.scene.playerCommitStatus.setText(hasCommitted ? 'OK' : 'X');
+        this.scene.playerCommitStatus.setStyle({
+          fill: hasCommitted ? '#00ff00' : '#ff0000',
+          fontSize: "11px",
+          fontStyle: "bold"
+        });
+      }
     }
   }
 }
