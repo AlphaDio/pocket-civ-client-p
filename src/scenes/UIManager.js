@@ -380,7 +380,7 @@ export default class UIManager {
       this.currentPlayerIndex = 0;
     }
     if (!this.displayMode) {
-      this.displayMode = 'resources'; // 'resources' or 'leader'
+      this.displayMode = 'resources'; // 'resources', 'leader', or 'unique'
     }
 
     // Get the current player to display
@@ -394,19 +394,28 @@ export default class UIManager {
                    `M: ${player.resources.might} | E: ${player.resources.education}\n` +
                    `G: ${player.resources.gold} | Fa: ${player.resources.faith}\n` +
                    `Fo: ${player.resources.food} | I: ${player.resources.influence}`;
-    } else {
+    } else if (this.displayMode === 'leader') {
       // Display leader information
       if (player.leader) {
-        const uniqueStatus = player.leader.uniqueAbility.usedThisEra ? "Used" : "Available";
         const r1 = player.leader.range1;
         const r2 = player.leader.range2;
         displayText = `${player.name}'s Leader:\n` +
                      `${player.leader.name}\n` +
                      `R1: ${r1.knowledge.type.substring(0, 3)}: +${r1.knowledge.amount} (${r1.value} ${r1.direction})\n` +
-                     `R2: ${r2.knowledge.type.substring(0, 3)}: +${r2.knowledge.amount} (${r2.value} ${r2.direction})\n` +
-                     `${player.leader.uniqueAbility.name}: ${uniqueStatus}`;
+                     `R2: ${r2.knowledge.type.substring(0, 3)}: +${r2.knowledge.amount} (${r2.value} ${r2.direction})`;
       } else {
         displayText = `${player.name}'s Leader:\nNo Leader`;
+      }
+    } else { // unique mode
+      // Display unique ability information
+      if (player.leader?.uniqueAbility) {
+        const uniqueStatus = player.leader.uniqueAbility.usedThisEra ? "Used" : "Available";
+        displayText = `${player.name}'s Unique Ability:\n` +
+                     `${player.leader.uniqueAbility.name}\n` +
+                     `Status: ${uniqueStatus}\n` +
+                     `Effect: ${player.leader.uniqueAbility.description}`;
+      } else {
+        displayText = `${player.name}'s Unique Ability:\nNo Leader/Ability`;
       }
     }
 
@@ -447,11 +456,13 @@ export default class UIManager {
     // Add click handler for player switching
     this.scene.otherPlayerText.off('pointerdown');
     this.scene.otherPlayerText.on('pointerdown', () => {
-      // If showing resources, switch to leader info
+      // Cycle through display modes
       if (this.displayMode === 'resources') {
         this.displayMode = 'leader';
+      } else if (this.displayMode === 'leader') {
+        this.displayMode = 'unique';
       } else {
-        // If showing leader info, move to next player and show their resources
+        // If showing unique ability, move to next player and show their resources
         this.displayMode = 'resources';
         this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.otherPlayersList.length;
       }
