@@ -234,17 +234,32 @@ export default class CaseManager {
     const displayMode =
       this.scene.caseDisplayModes.get(caseData.caseId) || DISPLAY_MODE.DEFAULT;
 
+    let yOffset = -30;
+    if (caseData.owner) {
+      const ownerText = this.scene.add
+        .text(0, yOffset, `${caseData.owner.slice(-3)}`, {
+          fontSize: "14px",
+          fill: "#00ff00",
+        })
+        .setOrigin(0.5);
+      container.add(ownerText);
+      yOffset += 20;
+    }
+
+    // Add claim threshold for revealed cases
+    if (caseData.isRevealed && !caseData.owner) {
+      const thresholdText = this.scene.add
+        .text(0, yOffset, `Claim: ${caseData.claimThreshold}`, {
+          fontSize: "14px",
+          fill: "#DAA520",
+        })
+        .setOrigin(0.5);
+      container.add(thresholdText);
+      yOffset += 20;
+    }
+
     if (this.scene.currentVisibleEra === this.scene.gameState.currentEra) {
-      let yOffset = -30;
-      if (caseData.owner) {
-        const ownerText = this.scene.add
-          .text(0, yOffset, `${caseData.owner.slice(-3)}`, {
-            fontSize: "14px",
-            fill: "#00ff00",
-          })
-          .setOrigin(0.5);
-        container.add(ownerText);
-      } else if (!caseData.isRevealed) {
+      if (!caseData.owner && !caseData.isRevealed) {
         const explorationPointsText = Object.entries(
           caseData.explorationPoints || {}
         )
