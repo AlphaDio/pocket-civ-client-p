@@ -326,18 +326,26 @@ export default class UIManager {
   }
 
   hasTurnCommitted(player) {
-    if (!player || !player.turnActions) return false;
+    if (!player) return false;
     
-    // Check if player has valid leader placements and upgrades
-    const hasLeaderPlacements = player.turnActions.leaderPlacements && 
+    // If this is another player (has hasCommitted flag), use that
+    if ('hasCommitted' in player) {
+      return player.hasCommitted;
+    }
+    
+    // For the current player, check detailed conditions
+    const hasLeaderPlacements = player.turnActions?.leaderPlacements && 
                                Array.isArray(player.turnActions.leaderPlacements) && 
                                player.turnActions.leaderPlacements.length > 0;
     
-    const hasUpgrades = player.turnActions.upgrades && 
+    const hasUpgrades = player.turnActions?.upgrades && 
                         Array.isArray(player.turnActions.upgrades) && 
                         player.turnActions.upgrades.length > 0;
     
-    return hasLeaderPlacements || hasUpgrades;
+    // Check if leader has been used this turn
+    const hasUsedLeader = player.leader?.usedThisTurn;
+    
+    return hasLeaderPlacements || hasUpgrades || hasUsedLeader;
   }
 
   updateOtherPlayersDisplay(otherPlayers) {
@@ -367,8 +375,6 @@ export default class UIManager {
       leaderInfo = `${player.leader.name}\nR1: ${r1.knowledge.type.substring(0, 3)}: +${r1.knowledge.amount} (${r1.value} ${r1.direction})\nR2: ${r2.knowledge.type.substring(0, 3)}: +${r2.knowledge.amount} (${r2.value} ${r2.direction})\n${player.leader.uniqueAbility.name}: ${uniqueStatus}`;
     }
     
-    const hasCommitted = this.hasTurnCommitted(player);
-    
     const playerText = `${player.name}\nEP: ${player.eraPoints}\nM: ${player.resources.might} | E: ${player.resources.education}\nG: ${player.resources.gold} | Fa: ${player.resources.faith}\nFo: ${player.resources.food} | I: ${player.resources.influence}\n${leaderInfo}`;
 
     this.scene.otherPlayerText.setText(playerText);
@@ -388,11 +394,13 @@ export default class UIManager {
       this.scene.otherPlayerContainer.add(this.scene.commitStatusText);
     }
     
-    this.scene.commitStatusText.setText(hasCommitted ? 'OK' : 'X');
+    this.scene.commitStatusText.setText(player.hasCommitted ? 'OK' : 'X');
     this.scene.commitStatusText.setStyle({
-      fill: hasCommitted ? '#00ff00' : '#ff0000'  // Green for committed, red for not committed
+      fill: player.hasCommitted ? '#00ff00' : '#ff0000',  // Green for committed, red for not committed
+      fontSize: "11px",
+      fontStyle: "bold"
     });
-    this.scene.commitStatusText.setPosition(90, 10); // Position next to the player name
+    this.scene.commitStatusText.setPosition(10, 10); // Position next to the player name
     this.scene.commitStatusText.visible = true;
     
     const playerWidth = 200; // Increased width to accommodate the text
