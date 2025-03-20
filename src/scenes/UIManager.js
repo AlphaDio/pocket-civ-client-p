@@ -374,27 +374,43 @@ export default class UIManager {
       return;
     }
 
-    // Store the current player list and initialize current index if not set
+    // Store the current player list and initialize indices if not set
     this.otherPlayersList = otherPlayers;
     if (!this.currentPlayerIndex) {
       this.currentPlayerIndex = 0;
+    }
+    if (!this.displayMode) {
+      this.displayMode = 'resources'; // 'resources' or 'leader'
     }
 
     // Get the current player to display
     const player = this.otherPlayersList[this.currentPlayerIndex];
     
-    // Get leader information from the player object
-    let leaderInfo = "No Leader";
-    if (player.leader) {
-      const uniqueStatus = player.leader.uniqueAbility.usedThisEra ? "Used" : "Available";
-      const r1 = player.leader.range1;
-      const r2 = player.leader.range2;
-      leaderInfo = `${player.leader.name}\nR1: ${r1.knowledge.type.substring(0, 3)}: +${r1.knowledge.amount} (${r1.value} ${r1.direction})\nR2: ${r2.knowledge.type.substring(0, 3)}: +${r2.knowledge.amount} (${r2.value} ${r2.direction})\n${player.leader.uniqueAbility.name}: ${uniqueStatus}`;
+    let displayText = '';
+    if (this.displayMode === 'resources') {
+      // Display player ID and resources
+      displayText = `${player.name} (ID: ${player.id.slice(-3)})\n` +
+                   `EP: ${player.eraPoints}\n` +
+                   `M: ${player.resources.might} | E: ${player.resources.education}\n` +
+                   `G: ${player.resources.gold} | Fa: ${player.resources.faith}\n` +
+                   `Fo: ${player.resources.food} | I: ${player.resources.influence}`;
+    } else {
+      // Display leader information
+      if (player.leader) {
+        const uniqueStatus = player.leader.uniqueAbility.usedThisEra ? "Used" : "Available";
+        const r1 = player.leader.range1;
+        const r2 = player.leader.range2;
+        displayText = `${player.name}'s Leader:\n` +
+                     `${player.leader.name}\n` +
+                     `R1: ${r1.knowledge.type.substring(0, 3)}: +${r1.knowledge.amount} (${r1.value} ${r1.direction})\n` +
+                     `R2: ${r2.knowledge.type.substring(0, 3)}: +${r2.knowledge.amount} (${r2.value} ${r2.direction})\n` +
+                     `${player.leader.uniqueAbility.name}: ${uniqueStatus}`;
+      } else {
+        displayText = `${player.name}'s Leader:\nNo Leader`;
+      }
     }
-    
-    const playerText = `${player.name}\nEP: ${player.eraPoints}\nM: ${player.resources.might} | E: ${player.resources.education}\nG: ${player.resources.gold} | Fa: ${player.resources.faith}\nFo: ${player.resources.food} | I: ${player.resources.influence}\n${leaderInfo}`;
 
-    this.scene.otherPlayerText.setText(playerText);
+    this.scene.otherPlayerText.setText(displayText);
     this.scene.otherPlayerText.setStyle({
       fontSize: "11px",
       fill: "#aaa",
@@ -417,10 +433,10 @@ export default class UIManager {
       fontSize: "11px",
       fontStyle: "bold"
     });
-    this.scene.commitStatusText.setPosition(10, 10); // Position next to the player name
+    this.scene.commitStatusText.setPosition(10, 10);
     this.scene.commitStatusText.visible = true;
     
-    const playerWidth = 200; // Increased width to accommodate the text
+    const playerWidth = 200;
 
     // Position the container in the top-right corner
     this.scene.otherPlayerContainer.setPosition(
@@ -429,11 +445,17 @@ export default class UIManager {
     );
     
     // Add click handler for player switching
-    this.scene.otherPlayerText.off('pointerdown'); // Remove any existing handlers
+    this.scene.otherPlayerText.off('pointerdown');
     this.scene.otherPlayerText.on('pointerdown', () => {
-      // Increment index and wrap around if needed
-      this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.otherPlayersList.length;
-      // Update display with new player
+      // If showing resources, switch to leader info
+      if (this.displayMode === 'resources') {
+        this.displayMode = 'leader';
+      } else {
+        // If showing leader info, move to next player and show their resources
+        this.displayMode = 'resources';
+        this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.otherPlayersList.length;
+      }
+      // Update display
       this.updateOtherPlayersDisplay(this.otherPlayersList);
     });
 
