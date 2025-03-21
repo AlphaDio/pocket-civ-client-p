@@ -102,6 +102,49 @@ export default class CaseManager {
       CARD_HEIGHT,
       0x333333
     );
+
+    // Add the background image if available and case is revealed
+    if (caseData.image && caseData.isRevealed) {
+      // Create a unique key for this image
+      const imageKey = `case-image-${caseData.caseId}`;
+      
+      // Only load if texture doesn't exist
+      if (!this.scene.textures.exists(imageKey)) {
+        const tempImg = new Image();
+        tempImg.crossOrigin = "Anonymous";
+        tempImg.onload = () => {
+          // Add to texture manager when loaded
+          this.scene.textures.addImage(imageKey, tempImg);
+          
+          // Create and add the image to the container
+          const image = this.scene.add.image(0, 0, imageKey);
+          
+          // Scale to fit card dimensions while maintaining aspect ratio
+          const scale = Math.min(
+            CARD_WIDTH / image.width,
+            CARD_HEIGHT / image.height
+          );
+          image.setScale(scale);
+          
+          // Add the image at the start of the container's list
+          container.addAt(image, 1);
+        };
+        tempImg.onerror = () => {
+          console.error(`Failed to load image for case: ${caseData.caseId}`);
+        };
+        tempImg.src = caseData.image;
+      } else {
+        // If texture already exists, just create the image
+        const image = this.scene.add.image(0, 0, imageKey);
+        const scale = Math.min(
+          CARD_WIDTH / image.width,
+          CARD_HEIGHT / image.height
+        );
+        image.setScale(scale);
+        container.addAt(image, 1);
+      }
+    }
+
     bg.setInteractive()
       .on("pointerover", () => {
         if (
@@ -190,6 +233,52 @@ export default class CaseManager {
     const leadersText = container.list.find(
       (e) => e.type === "Text" && e.name === "leaders"
     );
+
+    // Update or add the case image
+    const imageKey = `case-image-${caseData.caseId}`;
+    const existingImage = container.list.find(
+      (e) => e.type === "Image" && e.texture.key === imageKey
+    );
+
+    // Remove existing image if URL has changed or case is no longer revealed
+    if (existingImage && (existingImage.data?.url !== caseData.image || !caseData.isRevealed)) {
+      existingImage.destroy();
+      if (this.scene.textures.exists(imageKey)) {
+        this.scene.textures.remove(imageKey);
+      }
+    }
+
+    // Add new image if needed and case is revealed
+    if (caseData.image && !existingImage && caseData.isRevealed) {
+      if (!this.scene.textures.exists(imageKey)) {
+        const tempImg = new Image();
+        tempImg.crossOrigin = "Anonymous";
+        tempImg.onload = () => {
+          this.scene.textures.addImage(imageKey, tempImg);
+          const image = this.scene.add.image(0, 0, imageKey);
+          const scale = Math.min(
+            CARD_WIDTH / image.width,
+            CARD_HEIGHT / image.height
+          );
+          image.setScale(scale);
+          image.data = { url: caseData.image };
+          container.addAt(image, 1);
+        };
+        tempImg.onerror = () => {
+          console.error(`Failed to load image for case: ${caseData.caseId}`);
+        };
+        tempImg.src = caseData.image;
+      } else {
+        const image = this.scene.add.image(0, 0, imageKey);
+        const scale = Math.min(
+          CARD_WIDTH / image.width,
+          CARD_HEIGHT / image.height
+        );
+        image.setScale(scale);
+        image.data = { url: caseData.image };
+        container.addAt(image, 1);
+      }
+    }
 
     if (nameText) {
       nameText.setText(caseData.isRevealed ? caseData.name : "???");
