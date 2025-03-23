@@ -1,5 +1,5 @@
 export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-export const DEFAULT_POLL_INTERVAL = 800;
+export const DEFAULT_POLL_INTERVAL = 1200;
 export const ERROR_POLL_INTERVAL = 2000;
 export const CARD_WIDTH = 180;
 export const CARD_HEIGHT = 300;
