@@ -47,6 +47,16 @@ export default class StateManager {
   }
 
   updateGameState(gameState) {
+    // Check for game over state
+    if (gameState.isGameOver) {
+      console.log("StateManager: Game is over, transitioning to GameEnd scene");
+      this.scene.scene.start('GameEnd', {
+        winner: gameState.winner,
+        eraPoints: gameState.maxEraPoints
+      });
+      return;
+    }
+
     // Check for round change to clear turn actions
     if (
       this.scene.gameState &&

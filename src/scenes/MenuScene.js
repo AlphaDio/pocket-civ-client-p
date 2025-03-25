@@ -24,7 +24,7 @@ export default class MenuScene extends Phaser.Scene {
     const screenCenter = screenWidth / 2;
     
     // Add title - moved higher up
-    this.add.text(screenCenter, 50, 'PocketCiv', {
+    this.add.text(screenCenter, 50, 'Eradotus', {
       fontSize: '32px',
       fill: '#fff'
     }).setOrigin(0.5);

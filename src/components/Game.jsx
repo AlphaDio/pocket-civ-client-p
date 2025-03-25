@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 import MenuScene from '../scenes/MenuScene';
 import GameScene from '../scenes/GameScene';
+import GameEnd from '../scenes/GameEnd';
 
 function Game() {
   const gameRef = useRef(null);
@@ -19,7 +20,7 @@ function Game() {
         scale: {
           mode: Phaser.Scale.RESIZE,
         },
-        scene: [MenuScene, GameScene]
+        scene: [MenuScene, GameScene, GameEnd]
       };
 
     // Create the game instance
