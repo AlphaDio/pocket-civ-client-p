@@ -40,7 +40,10 @@ export default class GameEnd extends Phaser.Scene {
     .setOrigin(0.5)
     .setInteractive()
     .on('pointerdown', () => {
-      this.scene.start('MainMenu');
+      // Clear any stored game data
+      localStorage.removeItem('gameId');
+      localStorage.removeItem('playerUUID');
+      this.scene.start('MenuScene');
     });
 
     // Add hover effect
