@@ -12,6 +12,7 @@ import UIManager from "./UIManager";
 import StateManager from "./StateManager";
 import CaseManager from "./CaseManager";
 import EraManager from "./EraManager";
+import AttributionManager from "./utils/AttributionManager";
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -69,26 +70,7 @@ export default class GameScene extends Phaser.Scene {
     this.eraManager.createEraButtons();
 
     // Add game jam attribution
-    const jamLink = document.createElement('a');
-    jamLink.href = 'https://jam.pieter.com';
-    jamLink.target = '_blank';
-    jamLink.style.cssText = `
-      font-family: 'system-ui', sans-serif;
-      position: fixed;
-      bottom: -1px;
-      right: -1px;
-      padding: 7px;
-      font-size: 14px;
-      font-weight: bold;
-      background: #fff;
-      color: #000;
-      text-decoration: none;
-      z-index: 10000;
-      border-top-left-radius: 12px;
-      border: 1px solid #fff;
-    `;
-    jamLink.textContent = '🕹️ Vibe Jam 2025';
-    document.body.appendChild(jamLink);
+    AttributionManager.addGameJamAttribution();
   
     // Verify caseManager is initialized
     console.log("CaseManager initialized:", this.caseManager.updateCasesDisplay ? "Yes" : "No");

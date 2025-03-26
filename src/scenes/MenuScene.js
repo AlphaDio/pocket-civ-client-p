@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import AttributionManager from './utils/AttributionManager';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -28,6 +29,9 @@ export default class MenuScene extends Phaser.Scene {
       fontSize: '32px',
       fill: '#fff'
     }).setOrigin(0.5);
+
+    // Add game jam attribution
+    AttributionManager.addGameJamAttribution();
 
     // Create Game button - adjusted position and size
     const createButton = this.add.text(screenCenter, 100, 'Create New Game', {
