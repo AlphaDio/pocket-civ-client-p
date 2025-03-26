@@ -187,7 +187,7 @@ export default class MenuScene extends Phaser.Scene {
       gameElements.push(joinButton);
 
       // Delete/Close button - adjusted position and size
-      if (game.status.toLowerCase() === 'in_progress' || game.status.toLowerCase() === 'in progress') {
+      if (game.status.toLowerCase() === 'in_progress' || game.status.toLowerCase() === 'in progress' || game.status.toLowerCase() === 'completed') {
         const closeButton = this.add.text(120, yOffset, 'Close', {
           fontSize: '16px',
           fill: '#ff0000',
