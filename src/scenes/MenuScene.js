@@ -427,8 +427,10 @@ export default class MenuScene extends Phaser.Scene {
       "1. Enter your name",
       "2. Create a new game or join an existing one",
       "3. Place leaders on cases to explore or claim them",
-      "4. Use resources to upgrade your cases",
-      "5. Win by having the most Era points",
+      "4. After a set amount of rounds, an era ends and a new one starts",
+      "5. Go through the 10 eras of the game to finish",
+      "6. Use resources to upgrade your cases from past eras",
+      "7. Win by having the most Era points",
       "",
       "Click ? again to close"
     ];

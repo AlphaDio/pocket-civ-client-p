@@ -25,6 +25,7 @@ export const helpContent = {
       "• Double-click a leader for unique ability",
       "• Player with most Era points wins",
       "• Click on cases to see their effects",
+      "• New era starts after a set amount of rounds",
     ]
   },
   page2: {
