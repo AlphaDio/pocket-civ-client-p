@@ -48,7 +48,7 @@ export default class StateManager {
 
   updateGameState(gameState) {
     // Check for game over state
-    if (gameState.isGameOver) {
+    if (gameState.isGameOver || gameState.status === "completed") {
       console.log("StateManager: Game is over, transitioning to GameEnd scene");
       this.scene.scene.start('GameEnd', {
         winner: gameState.winner,
