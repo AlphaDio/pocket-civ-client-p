@@ -16,6 +16,7 @@ export default class MenuScene extends Phaser.Scene {
     this.playerUUID = null;
     this.gamesList = [];
     this.gamesListContainer = null;
+    this.helpText = null;
   }
 
   create() {
@@ -35,129 +36,18 @@ export default class MenuScene extends Phaser.Scene {
     // Add game jam attribution
     AttributionManager.addGameJamAttribution();
 
-    // Add help button
-    this.helpButton = this.add
-      .text(screenWidth - 10, screenHeight - 80, "?", {
-        fontSize: "24px",
-        fill: "#ffffff",
-        backgroundColor: "#444",
-        padding: { x: 10, y: 5 },
-      })
-      .setOrigin(1, 1)
-      .setInteractive()
-      .on("pointerdown", () => this.toggleHelpPanel())
-      .on("pointerover", () =>
-        this.helpButton.setStyle({ fill: "#cccccc" })
-      )
-      .on("pointerout", () =>
-        this.helpButton.setStyle({ fill: "#ffffff" })
-      )
-      .setVisible(true);
-
-    // Create help panel
-    const panelWidth = Math.min(
-      Math.max(screenWidth * HELP_PANEL_CONFIG.widthPercent, HELP_PANEL_CONFIG.minWidth),
-      HELP_PANEL_CONFIG.maxWidth
-    );
-    const panelHeight = Math.min(
-      Math.max(screenHeight * HELP_PANEL_CONFIG.heightPercent, HELP_PANEL_CONFIG.minHeight),
-      HELP_PANEL_CONFIG.maxHeight
-    );
-    
-    const panelX = screenWidth / 2 - panelWidth / 2;
-    const panelY = screenHeight / 2 - panelHeight / 2;
-
-    this.helpPanel = this.add.container(panelX, panelY);
-    
-    // Panel background
-    this.helpPanelBg = this.add.rectangle(
-      panelWidth / 2,
-      170,
-      panelWidth,
-      panelHeight,
-      0x000000,
-      0.95
-    );
-    this.helpPanelBg.setStrokeStyle(2, 0xffffff);
-    this.helpPanel.add(this.helpPanelBg);
-
-    // Create containers for each page
-    this.helpPages = [];
-    for (let i = 0; i < Object.keys(helpContent).length; i++) {
-      const page = this.add.container(0, 0);
-      this.helpPages.push(page);
-      this.helpPanel.add(page);
-      page.setVisible(i === 0);
-
-      // Add title
-      const title = this.add.text(
-        panelWidth / 2,
-        HELP_PANEL_CONFIG.titleY,
-        helpContent[`page${i + 1}`].title,
-        {
-          fontSize: "20px",
-          fill: "#ffffff",
-          fontStyle: "bold",
-        }
-      ).setOrigin(0.5);
-      page.add(title);
-
-      // Add tips
-      helpContent[`page${i + 1}`].tips.forEach((tip, index) => {
-        const tipText = this.add.text(
-          20,
-          HELP_PANEL_CONFIG.tipsStartY + (index * HELP_PANEL_CONFIG.tipSpacing),
-          tip,
-          {
-            fontSize: "16px",
-            fill: "#ffffff",
-            wordWrap: { width: panelWidth - 40 },
-          }
-        );
-        page.add(tipText);
-      });
-    }
-
-    // Add page indicator
-    this.pageIndicator = this.add.text(
-      panelWidth / 2,
-      panelHeight - HELP_PANEL_CONFIG.indicatorOffset,
-      this.getPageIndicatorText(0),
-      {
-        fontSize: "14px",
-        fill: "#ffffff",
-      }
-    ).setOrigin(0.5);
-    this.helpPanel.add(this.pageIndicator);
-
-    // Add next page button
-    this.nextPageButton = this.add
-      .text(panelWidth - 20, panelHeight - HELP_PANEL_CONFIG.indicatorOffset, "Next >", {
-        fontSize: "14px",
-        fill: "#ffffff",
-        backgroundColor: "#444",
-        padding: { x: 10, y: 5 },
-      })
-      .setOrigin(1, 0.5)
-      .setInteractive()
-      .on("pointerdown", () => this.nextHelpPage());
-    this.helpPanel.add(this.nextPageButton);
-
-    // Add close button
-    this.closeHelpButton = this.add
-      .text(20, panelHeight - HELP_PANEL_CONFIG.indicatorOffset, "< Close", {
-        fontSize: "14px",
-        fill: "#ffffff",
-        backgroundColor: "#444",
-        padding: { x: 10, y: 5 },
-      })
-      .setOrigin(0, 0.5)
-      .setInteractive()
-      .on("pointerdown", () => this.toggleHelpPanel());
-    this.helpPanel.add(this.closeHelpButton);
-
-    // Initially hide the help panel
-    this.helpPanel.setVisible(false);
+    // Add simple help button
+    const helpButton = this.add.text(screenWidth - 10, screenHeight - 80, "?", {
+      fontSize: "24px",
+      fill: "#ffffff",
+      backgroundColor: "#444",
+      padding: { x: 10, y: 5 },
+    })
+    .setOrigin(1, 1)
+    .setInteractive()
+    .on("pointerdown", () => this.toggleHelp())
+    .on("pointerover", () => helpButton.setStyle({ fill: "#cccccc" }))
+    .on("pointerout", () => helpButton.setStyle({ fill: "#ffffff" }));
 
     // Create Game button - adjusted position and size
     const createButton = this.add.text(screenCenter, 100, 'Create New Game', {
@@ -525,30 +415,35 @@ export default class MenuScene extends Phaser.Scene {
     });
   }
 
-  toggleHelpPanel() {
-    const isVisible = this.helpPanel.visible;
-    this.helpPanel.setVisible(!isVisible);
-    if (!isVisible) {
-      // Reset to first page when opening
-      this.helpPages.forEach((page, index) => {
-        page.setVisible(index === 0);
-      });
-      this.pageIndicator.setText(this.getPageIndicatorText(0));
+  toggleHelp() {
+    if (this.helpText) {
+      this.helpText.destroy();
+      this.helpText = null;
+      return;
     }
-  }
 
-  getPageIndicatorText(currentPage) {
-    return `Page ${currentPage + 1} of ${this.helpPages.length}`;
-  }
+    const helpMessage = [
+      "How to Play:",
+      "1. Enter your name",
+      "2. Create a new game or join an existing one",
+      "3. Place leaders on cases to explore or claim them",
+      "4. Use resources to upgrade your cases",
+      "5. Win by having the most Era points",
+      "",
+      "Click ? again to close"
+    ];
 
-  nextHelpPage() {
-    const currentPageIndex = this.helpPages.findIndex(page => page.visible);
-    const nextPageIndex = (currentPageIndex + 1) % this.helpPages.length;
-    
-    this.helpPages.forEach((page, index) => {
-      page.setVisible(index === nextPageIndex);
-    });
-    
-    this.pageIndicator.setText(this.getPageIndicatorText(nextPageIndex));
+    this.helpText = this.add.text(
+      this.scale.width / 2,
+      this.scale.height / 2,
+      helpMessage,
+      {
+        fontSize: "18px",
+        fill: "#ffffff",
+        backgroundColor: "#000000",
+        padding: { x: 20, y: 15 },
+        align: "center"
+      }
+    ).setOrigin(0.5);
   }
 } 
