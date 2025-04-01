@@ -5,6 +5,16 @@ export default class EraManager {
     this.scene = scene;
     this.prevEraButton = null;
     this.nextEraButton = null;
+    this.eraNames = {
+      1: "Ancient",
+      2: "Classical",
+      3: "Medieval",
+      4: "Renaissance",
+      5: "Modern",
+      6: "Nuclear",
+      7: "Information",
+      8: "Space"
+    };
   }
 
   createEraButtons() {
@@ -78,13 +88,13 @@ export default class EraManager {
       this.scene.historyCasePool.clear();
       this.scene.casesContainer.setVisible(true);
       this.scene.dragTarget = this.scene.casesContainer;
-      this.scene.eraLabel.setText(`Current Era (${era})`);
+      this.scene.eraLabel.setText(`${this.eraNames[era]} Era (${era}) (current)`);
     } else {
       this.scene.casesContainer.removeAll(true);
       this.scene.currentCasePool.clear();
       this.scene.historyCasesContainer.setVisible(true);
       this.scene.dragTarget = this.scene.historyCasesContainer;
-      this.scene.eraLabel.setText(`Era ${era}`);
+      this.scene.eraLabel.setText(`${this.eraNames[era]} Era (${era})`);
     }
 
     this.scene.currentVisibleEra = era;
