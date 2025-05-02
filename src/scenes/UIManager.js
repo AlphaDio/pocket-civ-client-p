@@ -405,7 +405,6 @@ export default class UIManager {
         const r2 = player.leader.range2;
         displayText = `${player.name}'s Leader:\n` +
                      `${player.leader.name}\n` +
-                     `${knowledgeString}\n` +
                      `R1: ${r1.value} ${r1.direction}, R2: ${r2.value} ${r2.direction}`;
       } else {
         displayText = `${player.name}'s Leader:\nNo Leader`;

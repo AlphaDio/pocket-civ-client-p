@@ -13,25 +13,6 @@ export default class StateManager {
     this.previousHistoryCases = new Map(); // Track previous historyCases for comparison
   }
 
-  async refreshLeaderKnowledge() {
-    if (!this.scene.gameId || !this.scene.playerUUID || !this.scene.gameState) {
-      return;
-    }
-    
-    try {
-      // Fetch the latest leader knowledge for the current player
-      await APIService.fetchLeaderKnowledge(
-        this.scene.gameId,
-        this.scene.playerUUID
-      );
-      
-      // The game state will be updated with the next poll, no need to update UI here
-      console.log("StateManager: Leader knowledge refreshed");
-    } catch (error) {
-      console.error("StateManager: Error refreshing leader knowledge:", error);
-    }
-  }
-
   async pollGameState() {
     if (this.scene.isPollingPaused) {
       console.log("StateManager: Polling paused");
@@ -46,10 +27,6 @@ export default class StateManager {
       );
       console.log("StateManager: Received game state:", gameState);
       this.updateGameState(gameState);
-      
-      // Refresh leader knowledge after updating game state
-      this.refreshLeaderKnowledge();
-      
       this.schedulePoll(DEFAULT_POLL_INTERVAL);
     } catch (error) {
       console.error("StateManager: Error polling game state:", error);
@@ -264,10 +241,6 @@ export default class StateManager {
       this.scene.uiManager.updateSelectedUpgradesText();
       
       console.log("StateManager: Turn committed successfully");
-      
-      // Refresh leader knowledge after committing turn
-      await this.refreshLeaderKnowledge();
-      
       this.schedulePoll(0);
     } catch (error) {
       console.error("StateManager: Error committing turn:", error);
