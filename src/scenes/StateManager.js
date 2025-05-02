@@ -1,4 +1,5 @@
 import APIService from "./utils/APIService";
+import LeaderManager from "./utils/LeaderManager";
 import {
   BACKEND_URL,
   DEFAULT_POLL_INTERVAL,
@@ -10,6 +11,25 @@ export default class StateManager {
   constructor(scene) {
     this.scene = scene;
     this.previousHistoryCases = new Map(); // Track previous historyCases for comparison
+  }
+
+  async refreshLeaderKnowledge() {
+    if (!this.scene.gameId || !this.scene.playerUUID || !this.scene.gameState) {
+      return;
+    }
+    
+    try {
+      // Fetch the latest leader knowledge for the current player
+      await APIService.fetchLeaderKnowledge(
+        this.scene.gameId,
+        this.scene.playerUUID
+      );
+      
+      // The game state will be updated with the next poll, no need to update UI here
+      console.log("StateManager: Leader knowledge refreshed");
+    } catch (error) {
+      console.error("StateManager: Error refreshing leader knowledge:", error);
+    }
   }
 
   async pollGameState() {
@@ -26,6 +46,10 @@ export default class StateManager {
       );
       console.log("StateManager: Received game state:", gameState);
       this.updateGameState(gameState);
+      
+      // Refresh leader knowledge after updating game state
+      this.refreshLeaderKnowledge();
+      
       this.schedulePoll(DEFAULT_POLL_INTERVAL);
     } catch (error) {
       console.error("StateManager: Error polling game state:", error);
@@ -130,8 +154,14 @@ export default class StateManager {
     this.scene.helpButton.visible = gameState.status === "in_progress";
 
     const player = gameState.player;
+    
+    // Get knowledge string using the static method
+    const knowledgeString = LeaderManager.formatKnowledgeTypesString(
+      player.leader ? player.leader.knowledgeTypes : null
+    );
+    
     this.scene.playerInfo.setText(
-      `${player.name} (${player.eraPoints} EP)\nM:${player.resources.might} | E:${player.resources.education}\nG:${player.resources.gold} | Fa:${player.resources.faith}\nFo:${player.resources.food} | I:${player.resources.influence}`
+      `${player.name} (${player.eraPoints} EP)\n${knowledgeString}\nM:${player.resources.might} | E:${player.resources.education}\nG:${player.resources.gold} | Fa:${player.resources.faith}\nFo:${player.resources.food} | I:${player.resources.influence}`
     );
 
     this.scene.uiManager.updateOtherPlayersDisplay(
@@ -203,31 +233,41 @@ export default class StateManager {
   }
 
   async handleCommitTurn() {
-    console.log(
-      "StateManager: Committing turn with pending placements and upgrades"
-    );
+    console.log("StateManager: Attempting to commit turn");
     try {
+      const leaderPlacements = this.scene.leaderManager
+        .getPendingPlacements()
+        .map((p) => ({
+          leaderId: p.leaderId,
+          caseId: p.caseId,
+          useUnique: p.useUnique,
+        }));
       const success = await APIService.commitTurn(
         this.scene.gameId,
         this.scene.playerUUID,
-        this.scene.leaderManager.getPendingPlacements(),
+        leaderPlacements,
         this.scene.gameState.player.turnActions.upgrades || []
       );
       if (!success) {
         console.error("StateManager: Failed to commit turn");
         return;
       }
-      this.scene.gameState.player.turnActions = {
-        leaderPlacements: this.scene.leaderManager.getPendingPlacements(),
-        upgrades: this.scene.gameState.player.turnActions.upgrades || [],
-      };
+      
       this.scene.leaderManager.clearPendingPlacements();
       this.scene.selectedHistoryCase = null;
-      this.scene.gameState.player.turnActions.upgrades = [];
+      this.scene.gameState.player.turnActions = {
+        leaderPlacements: [],
+        upgrades: [],
+      };
       this.scene.commitTurnButton.visible = false;
       this.scene.caseManager.updateCasesDisplay();
       this.scene.uiManager.updateSelectedUpgradesText();
-      console.log("StateManager: Successfully committed turn");
+      
+      console.log("StateManager: Turn committed successfully");
+      
+      // Refresh leader knowledge after committing turn
+      await this.refreshLeaderKnowledge();
+      
       this.schedulePoll(0);
     } catch (error) {
       console.error("StateManager: Error committing turn:", error);

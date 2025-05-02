@@ -1,5 +1,6 @@
 import { helpContent, HELP_PANEL_CONFIG } from './utils/helpContent';
 import APIService from './utils/APIService';
+import LeaderManager from './utils/LeaderManager';
 
 export default class UIManager {
   constructor(scene) {
@@ -397,12 +398,15 @@ export default class UIManager {
     } else if (this.displayMode === 'leader') {
       // Display leader information
       if (player.leader) {
+        // Get the knowledge string using the static method
+        const knowledgeString = LeaderManager.formatKnowledgeTypesString(player.leader.knowledgeTypes);
+        
         const r1 = player.leader.range1;
         const r2 = player.leader.range2;
         displayText = `${player.name}'s Leader:\n` +
                      `${player.leader.name}\n` +
-                     `R1: ${r1.knowledge.type.substring(0, 3)}: +${r1.knowledge.amount} (${r1.value} ${r1.direction})\n` +
-                     `R2: ${r2.knowledge.type.substring(0, 3)}: +${r2.knowledge.amount} (${r2.value} ${r2.direction})`;
+                     `${knowledgeString}\n` +
+                     `R1: ${r1.value} ${r1.direction}, R2: ${r2.value} ${r2.direction}`;
       } else {
         displayText = `${player.name}'s Leader:\nNo Leader`;
       }

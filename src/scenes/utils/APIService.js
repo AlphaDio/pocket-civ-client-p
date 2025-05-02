@@ -121,6 +121,39 @@ class APIService {
       return false;
     }
   }
+
+  /**
+   * Fetches the latest leader knowledge types for a player
+   * @param {string} gameId - The ID of the game
+   * @param {string} playerUUID - The UUID of the player
+   * @returns {Promise<Object>} - The leader knowledge values
+   */
+  async fetchLeaderKnowledge(gameId, playerUUID) {
+    console.log(`APIService: Fetching leader knowledge for player in game ${gameId}`);
+    try {
+      const response = await axios.get(
+        `${BACKEND_URL}/api/games/${gameId}/leader-knowledge`,
+        {
+          headers: {
+            "X-Player-UUID": playerUUID,
+          },
+        }
+      );
+      console.log("APIService: Received leader knowledge:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error(`APIService: Server returned error`, error);
+      // Return default empty knowledge object if request fails
+      return {
+        military: 0,
+        scientific: 0,
+        economic: 0,
+        religious: 0,
+        cultural: 0,
+        diplomatic: 0
+      };
+    }
+  }
 }
 
 // Export a singleton instance

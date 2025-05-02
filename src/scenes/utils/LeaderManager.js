@@ -15,10 +15,37 @@ export default class LeaderManager {
     this.MIN_CONTAINER_HEIGHT = 100;
   }
 
+  // Static method to format knowledge types
+  static formatKnowledgeTypesString(knowledgeTypes) {
+    const knowledgeTypeValues = {
+      military: 0,
+      scientific: 0,
+      economic: 0,
+      religious: 0,
+      cultural: 0,
+      diplomatic: 0
+    };
+    
+    // Set values from knowledge types if available
+    if (knowledgeTypes) {
+      knowledgeTypes.forEach(kt => {
+        if (kt.type && knowledgeTypeValues.hasOwnProperty(kt.type)) {
+          knowledgeTypeValues[kt.type] = kt.amount;
+        }
+      });
+    }
+    
+    // Create knowledge string in the required format
+    return `M:${knowledgeTypeValues.military},S:${knowledgeTypeValues.scientific},E:${knowledgeTypeValues.economic},R:${knowledgeTypeValues.religious},C:${knowledgeTypeValues.cultural},D:${knowledgeTypeValues.diplomatic}`;
+  }
+
   formatLeaderText(leader) {
+    // Use the static method to format knowledge types
+    const knowledgeString = LeaderManager.formatKnowledgeTypesString(leader.knowledgeTypes);
+    
     return {
-      nameText: `${leader.name} (R1: ${leader.range1.value} ${leader.range1.direction} Range; R2: ${leader.range2.value} ${leader.range2.direction} Range)`,
-      knowledgeText: `R1: ${leader.range1.knowledge.type.substring(0, 3)}: +${leader.range1.knowledge.amount}; R2: ${leader.range2.knowledge.type.substring(0, 3)}: +${leader.range2.knowledge.amount}`
+      nameText: `${leader.name}`,
+      knowledgeText: `${knowledgeString} | R1: ${leader.range1.value} ${leader.range1.direction}, R2: ${leader.range2.value} ${leader.range2.direction}`
     };
   }
 
