@@ -137,8 +137,22 @@ export default class StateManager {
       player.leader ? player.leader.knowledgeTypes : null
     );
     
+    // Format range-specific knowledge types if leader exists
+    let rangeInfo = '';
+    if (player.leader) {
+      const r1 = player.leader.range1;
+      const r2 = player.leader.range2;
+      
+      const r1Knowledge = r1.knowledge.type ? 
+        `${r1.knowledge.type.substring(0, 1).toUpperCase()}:${r1.knowledge.amount}` : '';
+      const r2Knowledge = r2.knowledge.type ? 
+        `${r2.knowledge.type.substring(0, 1).toUpperCase()}:${r2.knowledge.amount}` : '';
+      
+      rangeInfo = `\nR1: ${r1Knowledge} (${r1.value} ${r1.direction})\nR2: ${r2Knowledge} (${r2.value} ${r2.direction})`;
+    }
+    
     this.scene.playerInfo.setText(
-      `${player.name} (${player.eraPoints} EP)\n${knowledgeString}\nM:${player.resources.might} | E:${player.resources.education}\nG:${player.resources.gold} | Fa:${player.resources.faith}\nFo:${player.resources.food} | I:${player.resources.influence}`
+      `${player.name} (${player.eraPoints} EP)\n${knowledgeString}${rangeInfo}\nM:${player.resources.might} | E:${player.resources.education}\nG:${player.resources.gold} | Fa:${player.resources.faith}\nFo:${player.resources.food} | I:${player.resources.influence}`
     );
 
     this.scene.uiManager.updateOtherPlayersDisplay(

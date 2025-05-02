@@ -35,17 +35,31 @@ export default class LeaderManager {
       });
     }
     
-    // Create knowledge string in the required format
-    return `M:${knowledgeTypeValues.military},S:${knowledgeTypeValues.scientific},E:${knowledgeTypeValues.economic},R:${knowledgeTypeValues.religious},C:${knowledgeTypeValues.cultural},D:${knowledgeTypeValues.diplomatic}`;
+    // Create knowledge string only including non-zero values
+    const knowledgeParts = [];
+    if (knowledgeTypeValues.military > 0) knowledgeParts.push(`M:${knowledgeTypeValues.military}`);
+    if (knowledgeTypeValues.scientific > 0) knowledgeParts.push(`S:${knowledgeTypeValues.scientific}`);
+    if (knowledgeTypeValues.economic > 0) knowledgeParts.push(`E:${knowledgeTypeValues.economic}`);
+    if (knowledgeTypeValues.religious > 0) knowledgeParts.push(`R:${knowledgeTypeValues.religious}`);
+    if (knowledgeTypeValues.cultural > 0) knowledgeParts.push(`C:${knowledgeTypeValues.cultural}`);
+    if (knowledgeTypeValues.diplomatic > 0) knowledgeParts.push(`D:${knowledgeTypeValues.diplomatic}`);
+    
+    return knowledgeParts.join(',') || 'No knowledge';
   }
 
   formatLeaderText(leader) {
     // Use the static method to format knowledge types
     const knowledgeString = LeaderManager.formatKnowledgeTypesString(leader.knowledgeTypes);
     
+    // Format range-specific knowledge types
+    const r1Knowledge = leader.range1.knowledge.type ? 
+      `${leader.range1.knowledge.type.substring(0, 1).toUpperCase()}:${leader.range1.knowledge.amount}` : '';
+    const r2Knowledge = leader.range2.knowledge.type ? 
+      `${leader.range2.knowledge.type.substring(0, 1).toUpperCase()}:${leader.range2.knowledge.amount}` : '';
+    
     return {
       nameText: `${leader.name}`,
-      knowledgeText: `${knowledgeString} | R1: ${leader.range1.value} ${leader.range1.direction}, R2: ${leader.range2.value} ${leader.range2.direction}`
+      knowledgeText: `${knowledgeString}\nR1: ${r1Knowledge} (${leader.range1.value} ${leader.range1.direction})\nR2: ${r2Knowledge} (${leader.range2.value} ${leader.range2.direction})`
     };
   }
 
