@@ -77,5 +77,27 @@ export const helpContent = {
       "",
       "M=Military, S=Scientific, E=Economic, R=Religious, C=Cultural, D=Diplomatic"
     ]
+  },
+  page5: {
+    position: 5,
+    title: "Leader Knowledge Growth:",
+    tips: [
+      "When exploring cases, leaders can increase their knowledge:",
+      "",
+      "• Cities → Economic knowledge",
+      "• Conquests → Military knowledge",
+      "• Innovations → Scientific knowledge",
+      "• Discoveries → Diplomatic knowledge",
+      "• Great Works → Cultural knowledge",
+      "• Strategic Resources → Military knowledge",
+      "• Hubs → Diplomatic knowledge",
+      "• Growth Resources → Economic knowledge",
+      "• Icons → Religious knowledge",
+      "• Great People → Cultural, Scientific, Religious knowledge",
+      "",
+      "Note: Knowledge increases only apply to exploration,",
+      "not to claiming cases. The increase is applied to",
+      "the leader's first range (R1) knowledge."
+    ]
   }
 }; 
