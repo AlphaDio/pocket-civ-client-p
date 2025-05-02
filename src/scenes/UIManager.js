@@ -398,8 +398,6 @@ export default class UIManager {
     } else if (this.displayMode === 'leader') {
       // Display leader information
       if (player.leader) {
-        // Get the knowledge string using the static method
-        const knowledgeString = LeaderManager.formatKnowledgeTypesString(player.leader.knowledgeTypes);
         
         const r1 = player.leader.range1;
         const r2 = player.leader.range2;
